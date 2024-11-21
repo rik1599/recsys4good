@@ -72,17 +72,20 @@ class BPRmax(nn.Module):
         return loss.mean()
 
 
-def train(model: nn.Module, dataset: SequentialRecommendations, n_epochs=10, lr=0.01, reg_lambda=1.0):
+def train(model: nn.Module, train: SequentialRecommendations, validation: SequentialRecommendations, n_epochs=10, lr=0.01, reg_lambda=1.0):
     model.to(DEVICE)
-    model.train()
     optimizer = torch.optim.Adagrad(model.parameters(), lr=lr, lr_decay=1e-3)
     criterion = BPRmax(reg_lambda=reg_lambda)
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=dataset.collate_with_padding)
+
+    dataloader_train = DataLoader(train, batch_size=32, shuffle=True, collate_fn=train.collate_with_padding)
+    dataloader_validation = DataLoader(validation, batch_size=32, shuffle=False, collate_fn=validation.collate_with_padding)
 
     loss_epochs = []
+    validation_loss_epochs = []
     for _ in (bar := tqdm(range(n_epochs))):
+        model.train()
         epoch_loss = 0
-        for history, pos, neg in tqdm(dataloader, leave=False):
+        for history, pos, neg in tqdm(dataloader_train, leave=False):
             optimizer.zero_grad()
             out: torch.Tensor = model(history)
             pos_out = out.gather(1, pos)
@@ -91,7 +94,18 @@ def train(model: nn.Module, dataset: SequentialRecommendations, n_epochs=10, lr=
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
-        bar.set_postfix(loss=epoch_loss/len(dataloader))
-        loss_epochs.append(epoch_loss/len(dataloader))
+        bar.set_postfix(loss=epoch_loss/len(dataloader_train))
+        loss_epochs.append(epoch_loss/len(dataloader_train))
+
+        with torch.no_grad():
+            model.eval()
+            validation_loss = 0
+            for history, pos, neg in tqdm(dataloader_validation, leave=False):
+                out: torch.Tensor = model(history)
+                pos_out = out.gather(1, pos)
+                neg_out = out.gather(1, neg)
+                loss = criterion(pos_out, neg_out)
+                validation_loss += loss.item()
+            validation_loss_epochs.append(validation_loss/len(dataloader_validation))
     
-    return model, loss_epochs
+    return model, loss_epochs, validation_loss_epochs
