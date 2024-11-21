@@ -79,6 +79,7 @@ def train(model: nn.Module, dataset: SequentialRecommendations, n_epochs=10, lr=
     criterion = BPRmax(reg_lambda=reg_lambda)
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True, collate_fn=dataset.collate_with_padding)
 
+    loss_epochs = []
     for _ in (bar := tqdm(range(n_epochs))):
         epoch_loss = 0
         for history, pos, neg in tqdm(dataloader, leave=False):
@@ -91,5 +92,6 @@ def train(model: nn.Module, dataset: SequentialRecommendations, n_epochs=10, lr=
             optimizer.step()
             epoch_loss += loss.item()
         bar.set_postfix(loss=epoch_loss/len(dataloader))
+        loss_epochs.append(epoch_loss/len(dataloader))
     
-    return model
+    return model, loss_epochs
