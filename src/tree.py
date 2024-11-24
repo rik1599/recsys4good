@@ -21,3 +21,9 @@ class TreeNode:
 
     def __repr__(self):
         return f"TreeNode({self.value})"
+    
+    def __str__(self, level=0):
+        ret = "\t" * level + str(self.value) + "\n"
+        for child in self.children:
+            ret += child.__str__(level + 1)
+        return ret

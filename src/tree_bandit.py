@@ -1,5 +1,6 @@
 from src.tree import TreeNode
 from src.policy import Policy
+from typing import Iterable
 
 class TreeBandit:
     """
@@ -8,24 +9,20 @@ class TreeBandit:
     def __init__(self, root: TreeNode, policy: Policy):
         self.root = root
         self.policy = policy
-
-    def initialize_tree(self, node: TreeNode):
-        """
-        Initialize the policy for all nodes in the tree.
-        """
-        self.policy.init(node)
-        if not node.is_leaf:
-            for child in node.children:
-                self.initialize_tree(child)
-
-    def select(self):
+    
+    def select(self, n: Iterable[int], node: TreeNode = None) -> set[TreeNode]:
         """
         Traverse the tree from the root to a leaf node using the policy.
         """
-        current_node = self.root
-        while not current_node.is_leaf:
-            current_node = self.policy.select(current_node.children)
-        return current_node
+        if node is None:
+            node = self.root
+        
+        if node.is_leaf:
+            return {node}
+        
+        selected = self.policy.select(node.children, n[0])
+        return set.union(*[self.select(n[1:], child) for child in selected])
+
 
     def update(self, leaf_node, reward):
         """

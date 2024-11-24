@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from src.tree import TreeNode
 
 class Policy(ABC):
     """
@@ -12,7 +13,7 @@ class Policy(ABC):
         pass
 
     @abstractmethod
-    def select(self, nodes, *args, **kwargs):
+    def select(self, nodes, n, *args, **kwargs) -> set[TreeNode]:
         """
         Select a node from a list of nodes.
         """
