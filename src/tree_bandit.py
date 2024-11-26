@@ -10,7 +10,7 @@ class TreeBandit:
         self.root = root
         self.policy = policy
     
-    def select(self, n: Iterable[int], node: TreeNode = None) -> set[TreeNode]:
+    def select(self, n: Iterable[int], node: TreeNode = None, **kwargs) -> set[TreeNode]:
         """
         Traverse the tree from the root to a leaf node using the policy.
         """
@@ -20,8 +20,8 @@ class TreeBandit:
         if node.is_leaf:
             return {node}
         
-        selected = self.policy.select(node.children, n[0])
-        return set.union(*[self.select(n[1:], child) for child in selected])
+        selected = self.policy.select(node.children, n[0], **kwargs)
+        return set.union(*[self.select(n[1:], child, **kwargs) for child in selected])
 
 
     def update(self, leaf_node, reward):

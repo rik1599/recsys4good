@@ -6,21 +6,21 @@ class Policy(ABC):
     Abstract base class for a selection policy.
     """
     @abstractmethod
-    def init(self, *args, **kwargs):
+    def init(self, **kwargs):
         """
         Initialize the policy.
         """
         pass
 
     @abstractmethod
-    def select(self, nodes, n, *args, **kwargs) -> set[TreeNode]:
+    def select(self, nodes: list[TreeNode], n: int, **kwargs) -> set[TreeNode]:
         """
         Select a node from a list of nodes.
         """
         pass
 
     @abstractmethod
-    def update(self, *args, **kwargs):
+    def update(self, **kwargs):
         """
         Update the stats for a node after a reward is received.
         """
