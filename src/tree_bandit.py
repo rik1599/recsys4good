@@ -1,5 +1,5 @@
-from src.tree import TreeNode
-from src.policy import Policy
+from tree.tree import TreeNode
+from bandit.policy import Policy
 from typing import Iterable
 
 class TreeBandit:
