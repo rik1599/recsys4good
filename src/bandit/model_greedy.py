@@ -3,13 +3,14 @@ import torch.nn as nn
 import numpy as np
 import pandas as pd
 from src.dataset import MissionDataset, DEVICE
-from policy import Policy
+from .policy import Policy
 from src.tree import TreeNode
 from src.utils import train
 
 class EpsilonGreedyWithModel(Policy):
     def __init__(self, model: nn.Module, epsilon=0.1):
         super().__init__()
+        np.random.seed(42)
         self.model = model
         self.epsilon = epsilon
         self.__round_stats = {}
@@ -24,7 +25,7 @@ class EpsilonGreedyWithModel(Policy):
         selected_nodes = set()
 
         for _ in range(n):
-            if np.random.rand() < self.epsilon:
+            if np.random.rand() <= self.epsilon:
                 node = np.random.choice(list(selectable_nodes.keys()))
             else:
                 node = max(selectable_nodes, key=selectable_nodes.get)
@@ -48,5 +49,9 @@ class EpsilonGreedyWithModel(Policy):
     
     def update(self, **kwargs):
         train_df: pd.DataFrame = kwargs['train_df']
-        dataset = MissionDataset(train_df['missionID'].values, train_df['user'].values, train_df['performance'].values)
-        self.model = train(self.model, dataset)
+        dataset = MissionDataset(train_df['missionID'].values, train_df['user'].values, train_df['reward'].values)
+
+        epochs = kwargs.get('epochs', 15)
+        lr = kwargs.get('lr', 0.001)
+        batch_size = kwargs.get('batch_size', 16)
+        self.model = train(self.model, dataset, epochs=epochs, lr=lr, batch_size=batch_size, verbose=False)

@@ -3,6 +3,7 @@ from torch import nn
 
 class MissionLinearRegression(nn.Module):
     def __init__(self, num_users, num_missions):
+        torch.manual_seed(42)
         super(MissionLinearRegression, self).__init__()
         self.user_embedding = nn.Embedding(num_users, 1)
         self.mission_embedding = nn.Embedding(num_missions, 1)

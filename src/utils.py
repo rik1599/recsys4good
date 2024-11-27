@@ -12,7 +12,8 @@ def train(
         batch_size=32, 
         epochs=10, 
         lr=0.01, 
-        weight_decay=0.0):
+        weight_decay=0.0,
+        verbose=True):
     """
     Train a PyTorch model on a dataset.
     """
@@ -26,17 +27,20 @@ def train(
     if validation_set:
         validation_set = DataLoader(validation_set, batch_size)
 
-    for _ in (bar := tqdm(range(epochs))):
+    bar = tqdm(range(epochs)) if verbose else range(epochs)
+    for _ in bar:
         model.train()
         train_loss = 0
-        for user, mission, rating in tqdm(train_set, leave=False):
+
+        epoch_bar = tqdm(train_set, leave=False) if verbose else train_set
+        for user, mission, rating in epoch_bar:
             optimizer.zero_grad()
             prediction = model(user, mission)
             loss = criterion(prediction, rating)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
-        if not validation_set:
+        if not validation_set and verbose:
             bar.set_postfix(loss=train_loss / len(train_set))
 
         if validation_set:
@@ -47,5 +51,6 @@ def train(
                     prediction = model(user, mission)
                     loss = criterion(prediction, rating)
                     validation_loss += loss.item()
-            bar.set_postfix(loss=train_loss / len(train_set), val_loss=validation_loss / len(validation_set))
+            if verbose:
+                bar.set_postfix(loss=train_loss / len(train_set), val_loss=validation_loss / len(validation_set))
     return model

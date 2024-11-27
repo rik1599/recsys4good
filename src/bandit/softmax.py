@@ -1,4 +1,4 @@
-from policy import Policy
+from .policy import Policy
 from src.tree import TreeNode
 import numpy as np
 import pandas as pd
@@ -11,6 +11,7 @@ from scipy.special import softmax
 class SoftmaxBandit(Policy):
     def __init__(self, model: nn.Module):
         super().__init__()
+        np.random.seed(42)
         self.model = model
         self.__round_stats = {}
 
@@ -39,5 +40,10 @@ class SoftmaxBandit(Policy):
     
     def update(self, **kwargs):
         train_df: pd.DataFrame = kwargs['train_df']
-        dataset = MissionDataset(train_df['missionID'].values, train_df['user'].values, train_df['performance'].values)
-        self.model = train(self.model, dataset)
+        dataset = MissionDataset(train_df['missionID'].values, train_df['user'].values, train_df['reward'].values)
+
+        epochs = kwargs.get('epochs', 15)
+        lr = kwargs.get('lr', 0.001)
+        batch_size = kwargs.get('batch_size', 16)
+        weight_decay = kwargs.get('weight_decay', 1e-4)
+        self.model = train(self.model, dataset, epochs=epochs, lr=lr, batch_size=batch_size, weight_decay=weight_decay, verbose=False)

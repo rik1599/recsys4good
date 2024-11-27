@@ -8,6 +8,7 @@ from tqdm.auto import tqdm
 
 class MissionMatrixFactorization(nn.Module):
     def __init__(self, num_users, num_missions, embedding_dim):
+        torch.manual_seed(42)
         super(MissionMatrixFactorization, self).__init__()
 
         # Embedding layers with incorporated bias
