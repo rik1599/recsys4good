@@ -1,3 +1,5 @@
+from typing import Iterable
+
 class TreeNode:
     """
     Represents a node in the tree.
@@ -27,3 +29,32 @@ class TreeNode:
         for child in self.children:
             ret += child.__str__(level + 1)
         return ret
+
+
+class TreeBandit:
+    """
+    Integrates a tree structure and a selection policy for bandit tasks.
+    """
+    def __init__(self, root: TreeNode, policy):
+        self.root = root
+        self.policy = policy
+    
+    def select(self, n: Iterable[int], node: TreeNode = None, **kwargs) -> set[TreeNode]:
+        """
+        Traverse the tree from the root to a leaf node using the policy.
+        """
+        if node is None:
+            node = self.root
+        
+        if node.is_leaf:
+            return {node}
+        
+        selected = self.policy.select(node.children, n[0], **kwargs)
+        return set.union(*[self.select(n[1:], child, **kwargs) for child in selected])
+
+
+    def update(self, leaf_node, reward):
+        """
+        Update the policy with a reward from a selected leaf node.
+        """
+        self.policy.update(leaf_node, reward)
