@@ -132,11 +132,11 @@ class PolicyWithMean(Policy, ABC):
     def update(self, **kwargs):
         self.df = kwargs['train_df'].groupby(['user', 'missionID'])['reward'].mean()
 
+
 class MeanEpsilonGreedy(PolicyWithMean):
     def __init__(self, epsilon=0.1):
         super().__init__()
         self.epsilon = epsilon
-        self.df = pd.Series()
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -153,10 +153,10 @@ class MeanEpsilonGreedy(PolicyWithMean):
         
         return selected_nodes
 
+
 class MeanSoftmaxBandit(PolicyWithMean):
     def __init__(self):
         super().__init__()
-        self.df = pd.Series()
     
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -164,11 +164,28 @@ class MeanSoftmaxBandit(PolicyWithMean):
         selected_nodes = np.random.choice(nodes, n, p=p, replace=False)
         return selected_nodes
 
+
+class EXP3(Policy):
+    def __init__(self, gamma=0.1):
+        super().__init__()
+        self.weights = pd.Series()
+        self.gamma = gamma
+
+    def init(self, **kwargs):
+        pass
+
+    def select(self, nodes, n, **kwargs):
+        user = kwargs['user']
+        weights = np.array([self.estimate(node, user=user) for node in nodes])
+        weights = (1 - self.gamma) * (weights / np.sum(weights)) + self.gamma / len(nodes)
+        selected_nodes = np.random.choice(nodes, n, p=weights, replace=False)
+        return selected_nodes
+
 class RandomBandit(Policy):
     def init(self, **kwargs):
         pass
 
-    def estimate(self, node, **kwargs):
+    def estimate(self, _, **kwargs):
         return 0
     
     def update(self, **kwargs):
