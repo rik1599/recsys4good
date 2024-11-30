@@ -1,15 +1,13 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
-from src.dataset import MissionDataset
+from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
 # --------- TRAINING UTILITIES --------- #
-def train(
+def _train(
         model: nn.Module, 
-        train_set: MissionDataset, 
-        validation_set: MissionDataset = None, 
+        train_set: Dataset, 
         batch_size=32, 
         epochs=10, 
         lr=0.01, 
@@ -19,40 +17,20 @@ def train(
     Train a PyTorch model on a dataset.
     """
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    # balance positive and negative samples
-    pos_weight = (train_set.ratings == 0).sum() / (train_set.ratings == 1).sum()
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight.view(-1))
-
+    criterion = nn.MSELoss()
     train_set = DataLoader(train_set, batch_size)
-    if validation_set:
-        validation_set = DataLoader(validation_set, batch_size)
+    model.train()
 
-    bar = tqdm(range(epochs)) if verbose else range(epochs)
-    for _ in bar:
-        model.train()
-        train_loss = 0
-
-        epoch_bar = tqdm(train_set, leave=False) if verbose else train_set
-        for user, mission, rating in epoch_bar:
+    for _ in (t := tqdm(range(epochs))) if verbose else range(epochs):
+        for user, mission, rating in train_set:
             optimizer.zero_grad()
-            prediction = model(user, mission)
-            loss = criterion(prediction, rating)
+            output = model(user, mission)
+            loss = criterion(output, rating)
             loss.backward()
             optimizer.step()
-            train_loss += loss.item()
-        if not validation_set and verbose:
-            bar.set_postfix(loss=train_loss / len(train_set))
-
-        if validation_set:
-            model.eval()
-            with torch.no_grad():
-                validation_loss = 0
-                for user, mission, rating in validation_set:
-                    prediction = model(user, mission)
-                    loss = criterion(prediction, rating)
-                    validation_loss += loss.item()
             if verbose:
-                bar.set_postfix(loss=train_loss / len(train_set), val_loss=validation_loss / len(validation_set))
+                t.set_postfix(loss=loss.item())
+
     return model
 
 
@@ -76,6 +54,9 @@ class MissionMatrixFactorization(nn.Module):
         dot = torch.sum(user_emb * mission_emb, dim=1) + \
             user_bias.squeeze() + mission_bias.squeeze() + self.bias
         return dot.flatten()
+    
+    def fit(self, train_set, batch_size=32, epochs=10, lr=0.01, weight_decay=0.0, verbose=True):
+        return _train(self, train_set, batch_size, epochs, lr, weight_decay, verbose)
 
 
 class MissionLinearRegression(nn.Module):
@@ -90,3 +71,6 @@ class MissionLinearRegression(nn.Module):
         mission_emb = self.mission_embedding(mission).squeeze()
         dot = user_emb + mission_emb + self.bias
         return dot.flatten()
+    
+    def fit(self, train_set, batch_size=32, epochs=10, lr=0.01, weight_decay=0.0, verbose=True):
+        return _train(self, train_set, batch_size, epochs, lr, weight_decay, verbose)

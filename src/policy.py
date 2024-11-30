@@ -5,8 +5,7 @@ import pandas as pd
 import torch
 from scipy.special import softmax
 import numpy as np
-from src.models import train
-from src.dataset import MissionDataset
+from torch.utils.data import TensorDataset
 
 class Policy(ABC):
     """
@@ -70,14 +69,18 @@ class PolicyWithModel(Policy, ABC):
     def update(self, **kwargs):
         train_df: pd.DataFrame = kwargs['train_df']
         train_df = train_df.drop_duplicates(subset=['user', 'missionID'], keep='last')
-        dataset = MissionDataset(train_df['missionID'].values, train_df['user'].values, train_df['reward'].values)
+        dataset = TensorDataset(
+            torch.tensor(train_df['user'].values, dtype=torch.long, device=self.device),
+            torch.tensor(train_df['missionID'].values, dtype=torch.long, device=self.device),
+            torch.tensor(train_df['reward'].values, dtype=torch.float, device=self.device)
+        )
 
         epochs = kwargs.get('epochs', 10)
         lr = kwargs.get('lr', 0.001)
         batch_size = kwargs.get('batch_size', 16)
         weight_decay = kwargs.get('weight_decay', 1e-4)
 
-        self.model = train(self.model, dataset, epochs=epochs, lr=lr, batch_size=batch_size, weight_decay=weight_decay, verbose=False)
+        self.model.fit(dataset, batch_size=batch_size, epochs=epochs, lr=lr, weight_decay=weight_decay, verbose=False)
         self.model.eval()
 
 
@@ -164,22 +167,6 @@ class MeanSoftmaxBandit(PolicyWithMean):
         selected_nodes = np.random.choice(nodes, n, p=p, replace=False)
         return selected_nodes
 
-
-class EXP3(Policy):
-    def __init__(self, gamma=0.1):
-        super().__init__()
-        self.weights = pd.Series()
-        self.gamma = gamma
-
-    def init(self, **kwargs):
-        pass
-
-    def select(self, nodes, n, **kwargs):
-        user = kwargs['user']
-        weights = np.array([self.estimate(node, user=user) for node in nodes])
-        weights = (1 - self.gamma) * (weights / np.sum(weights)) + self.gamma / len(nodes)
-        selected_nodes = np.random.choice(nodes, n, p=weights, replace=False)
-        return selected_nodes
 
 class RandomBandit(Policy):
     def init(self, **kwargs):

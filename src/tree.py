@@ -19,7 +19,7 @@ class TreeNode:
         """
         Check if the node is a leaf (has no children).
         """
-        return len(self.children) == 0
+        return self.children == []
 
     def __repr__(self):
         return f"TreeNode({self.value})"
