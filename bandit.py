@@ -49,6 +49,7 @@ print(root)
 
 # %%
 from src import policy as pol
+from src import contextual as ctx
 from src import models as mod
 from src.tree import TreeBandit
 from tqdm.auto import tqdm
@@ -56,7 +57,7 @@ from tqdm.auto import tqdm
 def replay(df: pd.DataFrame, policy: pol.Policy, root: TreeNode):
     history = pd.DataFrame()
     tree_bandit = TreeBandit(root, policy)
-    for _, round in tqdm(df.groupby('date'), leave=False):
+    for t, round in tqdm(df.groupby('date'), leave=False):
         day_recs = []
         for u in tqdm(round['user'].unique(), leave=False):
             policy.init()
@@ -65,13 +66,13 @@ def replay(df: pd.DataFrame, policy: pol.Policy, root: TreeNode):
 
         actions = round.merge(pd.DataFrame(day_recs), on=['user', 'missionID'], how='inner')
         history = pd.concat((history, actions), ignore_index=True)
-        policy.update(train_df=history)
+        policy.update(train_df=history, day=t)
             
     return history
 
 # %%
 def evaluate(policy) -> pd.DataFrame:
-    rewards = replay(df[['user', 'missionID', 'date', 'reward', 'performance']], policy, root)
+    rewards = replay(df[['user', 'missionID', 'date', 'reward']], policy, root)
     rewards = rewards.groupby('date')['reward'].sum().cumsum()
 
     return rewards
@@ -85,16 +86,17 @@ numpy.random.seed(0)
 
 policies = {
     'Random':               pol.RandomBandit(),
-    'Epsilon-Greedy':       pol.MeanEpsilonGreedy(epsilon=0.1),
-    'MF':                   pol.ModelEpsilonGreedy(model=mod.MissionMatrixFactorization(n_users, n_missions, embedding_dim=8), epsilon=0),
-    'Softmax-MF':           pol.SoftmaxBandit(model=mod.MissionMatrixFactorization(n_users, n_missions, embedding_dim=8)),
-    'Epsilon-Greedy-MF':    pol.ModelEpsilonGreedy(model=mod.MissionMatrixFactorization(n_users, n_missions, embedding_dim=8), epsilon=0.1),
+    #'Epsilon-Greedy':       pol.MeanEpsilonGreedy(epsilon=0.1),
+    'LinUCB':               ctx.LinUCB(n_users, n_missions, context_dim=16, alpha=2.0, device='cuda'),
+    #'MF':                   pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8), epsilon=0),
+    #'Softmax-MF':           pol.SoftmaxBandit(model=mod.MF(n_users, n_missions, embedding_dim=8)),
+    'Epsilon-Greedy-MF':    pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8), epsilon=0.1),
 }
 
 results = pd.concat([
     pd.concat({name: evaluate(policy) for name, policy in tqdm(policies.items(), leave=False)})
-    for _ in tqdm(range(10))
+    for _ in tqdm(range(1))
 ], axis=1)
 
 results
-results.to_csv('./out/replay_results.csv')
+results.to_csv('./out/replay_results_2.csv')

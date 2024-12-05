@@ -35,9 +35,9 @@ def _train(
 
 
 # --------- MODELS --------- #
-class MissionMatrixFactorization(nn.Module):
+class MF(nn.Module):
     def __init__(self, num_users, num_missions, embedding_dim):
-        super(MissionMatrixFactorization, self).__init__()
+        super(MF, self).__init__()
 
         # Embedding layers with incorporated bias
         self.user_embedding = nn.Embedding(num_users, embedding_dim)
@@ -59,9 +59,9 @@ class MissionMatrixFactorization(nn.Module):
         return _train(self, train_set, batch_size, epochs, lr, weight_decay, verbose)
 
 
-class MissionLinearRegression(nn.Module):
+class LinearRegression(nn.Module):
     def __init__(self, num_users, num_missions):
-        super(MissionLinearRegression, self).__init__()
+        super(LinearRegression, self).__init__()
         self.user_embedding = nn.Embedding(num_users, 1)
         self.mission_embedding = nn.Embedding(num_missions, 1)
         self.bias = nn.Parameter(torch.zeros(1))
