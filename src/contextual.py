@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import random
 from src.policy import Policy
 from torch.utils.data import DataLoader, TensorDataset
 

@@ -86,11 +86,10 @@ numpy.random.seed(0)
 
 policies = {
     'Random':               pol.RandomBandit(),
-    #'Epsilon-Greedy':       pol.MeanEpsilonGreedy(epsilon=0.1),
-    'LinUCB':               ctx.LinUCB(n_users, n_missions, context_dim=16, alpha=2.0, device='cuda'),
-    #'MF':                   pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8), epsilon=0),
-    #'Softmax-MF':           pol.SoftmaxBandit(model=mod.MF(n_users, n_missions, embedding_dim=8)),
+    'Epsilon-Greedy':       pol.MeanEpsilonGreedy(epsilon=0.1),
+    'LinUCB':               ctx.LinUCB(n_users, n_missions, context_dim=8, alpha=2.0, device='cuda'),
     'Epsilon-Greedy-MF':    pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8), epsilon=0.1),
+    'Softmax-MF':           pol.SoftmaxBandit(model=mod.MF(n_users, n_missions, embedding_dim=8)),
 }
 
 results = pd.concat([
@@ -99,4 +98,4 @@ results = pd.concat([
 ], axis=1)
 
 results
-results.to_csv('./out/replay_results_2.csv')
+results.to_csv('./out/replay_results.csv')
