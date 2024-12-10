@@ -20,7 +20,7 @@ df['type'] = df['type'].astype('category')
 def reward(x):
     if x <= 1:
         return x
-    return 2 - x**2
+    return max(0, 2 - x**2)
 
 df['reward'] = df['performance'].apply(reward)
 df.rename(columns={'createdAtT': 'date'}, inplace=True)
