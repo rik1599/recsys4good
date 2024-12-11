@@ -140,11 +140,12 @@ class AutoRec(nn.Module):
         epochs = kwargs.get('epochs', 10)
         batch_size = kwargs.get('batch_size', 32)
         device = kwargs.get('device', 'cpu')
+        n_users = train_df['user'].max() + 1
 
         optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
         criterion = nn.MSELoss()
 
-        user_item_matrix, na_mask = self.__get_dataset(train_df)
+        user_item_matrix, na_mask = self.__get_dataset(train_df, n_users)
         self.user_item_matrix = torch.tensor(user_item_matrix, dtype=torch.float, device=device)
 
         train_dl = DataLoader(TensorDataset(
@@ -169,12 +170,20 @@ class AutoRec(nn.Module):
         self.eval()
         return self
     
-    def __get_dataset(self, df: pd.DataFrame):
+    def __get_dataset(self, df: pd.DataFrame, n_users: int):
         user_item_matrix = df.pivot(index='user', columns='missionID', values='reward')
 
-        na_mask = ~user_item_matrix.isna().values
-        user_item_matrix = user_item_matrix.fillna(0).values
-        return user_item_matrix, na_mask
+        x = pd.DataFrame(
+            index=range(n_users),
+            columns=user_item_matrix.columns,
+            dtype=float
+        )
+        x.update(user_item_matrix)
+
+        na_mask = ~x.isna().values
+        x.fillna(0, inplace=True)
+
+        return x.values, na_mask
     
     def predict(self, user: torch.Tensor, mission: torch.Tensor):
         x = self.user_item_matrix[user]
