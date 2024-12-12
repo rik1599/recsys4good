@@ -29,8 +29,8 @@ df.sort_values(by=['date', 'user'], inplace=True, ignore_index=True)
 df
 
 # %%
-n_users = df['user'].nunique()
-n_missions = df['mission'].nunique()
+n_users = df['user'].max() + 1
+n_missions = df['missionID'].max() + 1
 
 n_users, n_missions
 
@@ -85,11 +85,10 @@ torch.manual_seed(0)
 numpy.random.seed(0)
 
 policies = {
-    'Random':               pol.RandomBandit(),
-    'Epsilon-Greedy':       pol.MeanEpsilonGreedy(epsilon=0.1),
-    'LinUCB':               ctx.LinUCB(n_users, n_missions, context_dim=8, alpha=2.0, device='cuda'),
-    'Epsilon-Greedy-MF':    pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8), epsilon=0.1),
-    'Softmax-MF':           pol.SoftmaxBandit(model=mod.MF(n_users, n_missions, embedding_dim=8)),
+    'E-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=32, dropout=0.1)),
+    'LinUCB': ctx.LinUCB(n_users, n_missions, n_missions, ctx.ContextManager(n_users=n_users, features=df['mission'].cat.categories)),
+    'Random': pol.RandomBandit(),
+    'E-Greedy-Mean': pol.MeanEpsilonGreedy(),
 }
 
 results = pd.concat([
@@ -98,4 +97,4 @@ results = pd.concat([
 ], axis=1)
 
 results
-results.to_csv('./out/replay_results.csv')
+results.to_csv('./out/replay_results.csv', index=True)

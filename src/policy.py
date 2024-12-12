@@ -2,10 +2,8 @@ from abc import ABC, abstractmethod
 from src.tree import TreeNode
 import torch.nn as nn
 import pandas as pd
-import torch
 from scipy.special import softmax
 import numpy as np
-from torch.utils.data import TensorDataset
 
 class Policy(ABC):
     """
@@ -45,8 +43,7 @@ class PolicyWithModel(Policy, ABC):
     """
     def __init__(self, model: nn.Module):
         super().__init__()
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model = model.to(self.device)
+        self.model = model
         self.round_stats = {}
     
     def init(self, **kwargs):
@@ -56,9 +53,7 @@ class PolicyWithModel(Policy, ABC):
     def estimate(self, node, **kwargs):
         user = kwargs['user']
         if node not in self.round_stats and node.is_leaf:
-            ids = torch.tensor([node.value['missionID']], dtype=torch.long, device=self.device)
-            user = torch.tensor([user], dtype=torch.long, device=self.device)
-            data = self.model(user, ids).item()
+            data = self.model.predict([user], [node.value['missionID']]).item()
             self.round_stats[node] = data
         
         if node.is_leaf:
@@ -68,20 +63,7 @@ class PolicyWithModel(Policy, ABC):
 
     def update(self, **kwargs):
         train_df: pd.DataFrame = kwargs['train_df']
-        train_df = train_df.drop_duplicates(subset=['user', 'missionID'], keep='last')
-        dataset = TensorDataset(
-            torch.tensor(train_df['user'].values, dtype=torch.long, device=self.device),
-            torch.tensor(train_df['missionID'].values, dtype=torch.long, device=self.device),
-            torch.tensor(train_df['reward'].values, dtype=torch.float, device=self.device)
-        )
-
-        epochs = kwargs.get('epochs', 10)
-        lr = kwargs.get('lr', 0.001)
-        batch_size = kwargs.get('batch_size', 16)
-        weight_decay = kwargs.get('weight_decay', 1e-4)
-
-        self.model.fit(dataset, batch_size=batch_size, epochs=epochs, lr=lr, weight_decay=weight_decay, verbose=False)
-        self.model.eval()
+        self.model.fit(train_df)
 
 
 class SoftmaxBandit(PolicyWithModel):

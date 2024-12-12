@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm.auto import tqdm
 
 class MF(nn.Module):
-    def __init__(self, num_users, num_missions, embedding_dim):
+    def __init__(self, num_users, num_missions, embedding_dim, **kwargs):
         super(MF, self).__init__()
 
         self.user_embedding = nn.Embedding(num_users, embedding_dim)
@@ -19,6 +19,14 @@ class MF(nn.Module):
         torch.nn.init.zeros_(self.user_bias.weight)
         torch.nn.init.zeros_(self.mission_bias.weight)
 
+        # Training parameters
+        self.device = kwargs.get('device', 'cpu')
+        self.lr = kwargs.get('lr', 0.001)
+        self.weight_decay = kwargs.get('weight_decay', 1e-4)
+        self.epochs = kwargs.get('epochs', 20)
+        self.batch_size = kwargs.get('batch_size', 32)
+
+
     def forward(self, user, mission):
         user_emb = self.user_embedding(user)
         mission_emb = self.mission_embedding(mission)
@@ -26,26 +34,25 @@ class MF(nn.Module):
         mission_bias = self.mission_bias(mission)
         
         dot = torch.sum(user_emb * mission_emb, dim=1, keepdim=True) + user_bias + mission_bias
-        return dot.squeeze()
+
+        if self.training:
+            return dot.squeeze()
+        return torch.relu(dot).squeeze()
     
-    def fit(self, train_df: pd.DataFrame, **kwargs):
-        lr = kwargs.get('lr', 0.01)
-        weight_decay = kwargs.get('weight_decay', 0.0)
-        epochs = kwargs.get('epochs', 10)
-        batch_size = kwargs.get('batch_size', 32)
-        device = kwargs.get('device', 'cpu')
-
-        optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
+    def fit(self, train_df: pd.DataFrame):
+        optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         criterion = nn.MSELoss()
-        train_dl = DataLoader(TensorDataset(
-            torch.tensor(train_df['user'].values, dtype=torch.long, device=device),
-            torch.tensor(train_df['missionID'].values, dtype=torch.long, device=device),
-            torch.tensor(train_df['reward'].values, dtype=torch.float, device=device)
-        ), batch_size, shuffle=True)
 
-        self.to(device)
+        train_df = train_df.drop_duplicates(subset=['user', 'missionID'], keep='last')
+        train_dl = DataLoader(TensorDataset(
+            torch.tensor(train_df['user'].values, dtype=torch.long, device=self.device),
+            torch.tensor(train_df['missionID'].values, dtype=torch.long, device=self.device),
+            torch.tensor(train_df['reward'].values, dtype=torch.float, device=self.device)
+        ), self.batch_size, shuffle=True)
+
+        self.to(self.device)
         self.train()
-        for _ in (t := tqdm(range(epochs), leave=False)):
+        for _ in (t := tqdm(range(self.epochs), leave=False)):
             epoch_loss = 0
             for user, mission, rating in train_dl:
                 optimizer.zero_grad()
@@ -56,13 +63,17 @@ class MF(nn.Module):
                 epoch_loss += loss.item()
             t.set_postfix({'loss': epoch_loss / len(train_dl)})
         
-        print(f'Final loss: {epoch_loss / len(train_dl)}')
         self.eval()
         return self
 
+    def predict(self, user, mission):
+        user = torch.tensor(user, dtype=torch.long, device=self.device)
+        mission = torch.tensor(mission, dtype=torch.long, device=self.device)
+        return self(user, mission)
+
 
 class MLP(nn.Module):
-    def __init__(self, num_users, num_missions, embedding_dim, hidden_dim, dropout):
+    def __init__(self, num_users, num_missions, embedding_dim, hidden_dim, dropout, **kwargs):
         super(MLP, self).__init__()
 
         self.user_embedding = nn.Embedding(num_users, embedding_dim)
@@ -77,6 +88,13 @@ class MLP(nn.Module):
 
         torch.nn.init.xavier_uniform_(self.user_embedding.weight)
         torch.nn.init.xavier_uniform_(self.mission_embedding.weight)
+
+        # Training parameters
+        self.device = kwargs.get('device', 'cpu')
+        self.lr = kwargs.get('lr', 0.001)
+        self.weight_decay = kwargs.get('weight_decay', 1e-4)
+        self.epochs = kwargs.get('epochs', 20)
+        self.batch_size = kwargs.get('batch_size', 32)
     
     def forward(self, user, mission):
         user_emb = self.user_embedding(user)
@@ -84,26 +102,25 @@ class MLP(nn.Module):
         
         mlp_input = torch.cat((user_emb, mission_emb), dim=1)
         mlp_out = self.mlp(mlp_input)
-        return mlp_out.squeeze()
+
+        if self.training:
+            return mlp_out.squeeze()
+        return torch.relu(mlp_out).squeeze()
     
-    def fit(self, train_df: pd.DataFrame, **kwargs):
-        lr = kwargs.get('lr', 0.01)
-        weight_decay = kwargs.get('weight_decay', 0.0)
-        epochs = kwargs.get('epochs', 10)
-        batch_size = kwargs.get('batch_size', 32)
-        device = kwargs.get('device', 'cpu')
-
-        optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
+    def fit(self, train_df: pd.DataFrame):
+        optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         criterion = nn.MSELoss()
-        train_dl = DataLoader(TensorDataset(
-            torch.tensor(train_df['user'].values, dtype=torch.long, device=device),
-            torch.tensor(train_df['missionID'].values, dtype=torch.long, device=device),
-            torch.tensor(train_df['reward'].values, dtype=torch.float, device=device)
-        ), batch_size, shuffle=True)
 
-        self.to(device)
+        train_df = train_df.drop_duplicates(subset=['user', 'missionID'], keep='last')
+        train_dl = DataLoader(TensorDataset(
+            torch.tensor(train_df['user'].values, dtype=torch.long, device=self.device),
+            torch.tensor(train_df['missionID'].values, dtype=torch.long, device=self.device),
+            torch.tensor(train_df['reward'].values, dtype=torch.float, device=self.device)
+        ), self.batch_size, shuffle=True)
+
+        self.to(self.device)
         self.train()
-        for _ in (t := tqdm(range(epochs), leave=False)):
+        for _ in (t := tqdm(range(self.epochs), leave=False)):
             epoch_loss = 0
             for user, mission, rating in train_dl:
                 optimizer.zero_grad()
@@ -114,48 +131,54 @@ class MLP(nn.Module):
                 epoch_loss += loss.item()
             t.set_postfix({'loss': epoch_loss / len(train_dl)})
         
-        print(f'Final loss: {epoch_loss / len(train_dl)}')
         self.eval()
         return self
+    
+    def predict(self, user, mission):
+        user = torch.tensor(user, dtype=torch.long, device=self.device)
+        mission = torch.tensor(mission, dtype=torch.long, device=self.device)
+        return self(user, mission)
 
 
-class AutoRec(nn.Module):
-    def __init__(self, d, k, dropout):
+class UserBasedAutoRec(nn.Module):
+    def __init__(self, n_users, n_missions, hidden_dim, dropout, **kwargs):
         super().__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(d, k),
+            nn.Linear(n_missions, hidden_dim),
             nn.Sigmoid(),
             nn.Dropout(dropout)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(k, d)
+            nn.Linear(hidden_dim, n_missions)
         )
-    
+
+        # Training parameters
+        self.device = kwargs.get('device', 'cpu')
+        self.lr = kwargs.get('lr', 1e-4)
+        self.weight_decay = kwargs.get('weight_decay', 1e-5)
+        self.epochs = kwargs.get('epochs', 100)
+        self.batch_size = kwargs.get('batch_size', 32)
+
+        self.user_item_matrix = torch.zeros(n_users, n_missions, device=self.device)
+        
     def forward(self, r):
         return self.decoder(self.encoder(r))
 
-    def fit(self, train_df: pd.DataFrame, **kwargs):
-        lr = kwargs.get('lr', 0.01)
-        weight_decay = kwargs.get('weight_decay', 0.0)
-        epochs = kwargs.get('epochs', 10)
-        batch_size = kwargs.get('batch_size', 32)
-        device = kwargs.get('device', 'cpu')
-        n_users = train_df['user'].max() + 1
-
-        optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
+    def fit(self, train_df: pd.DataFrame):
+        optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
         criterion = nn.MSELoss()
 
-        user_item_matrix, na_mask = self.__get_dataset(train_df, n_users)
-        self.user_item_matrix = torch.tensor(user_item_matrix, dtype=torch.float, device=device)
+        user_item_matrix, na_mask = self.__update_user_item_matrix(train_df)
+        self.user_item_matrix = torch.tensor(user_item_matrix, dtype=torch.float, device=self.device)
 
         train_dl = DataLoader(TensorDataset(
             self.user_item_matrix,
-            torch.tensor(na_mask, dtype=torch.float, device=device)
-        ), batch_size, shuffle=True)
+            torch.tensor(na_mask, dtype=torch.float, device=self.device)
+        ), self.batch_size, shuffle=True)
 
-        self.to(device)
+        self.to(self.device)
         self.train()
-        for _ in (t := tqdm(range(epochs), leave=False)):
+        for _ in (t := tqdm(range(self.epochs), leave=False)):
             epoch_loss = 0
             for r, mask in train_dl:
                 optimizer.zero_grad()
@@ -166,26 +189,27 @@ class AutoRec(nn.Module):
                 epoch_loss += loss.item()
             t.set_postfix({'loss': epoch_loss / len(train_dl)})
 
-        print(f'Final loss: {epoch_loss / len(train_dl)}')
         self.eval()
         return self
     
-    def __get_dataset(self, df: pd.DataFrame, n_users: int):
-        user_item_matrix = df.pivot(index='user', columns='missionID', values='reward')
+    def __update_user_item_matrix(self, df: pd.DataFrame):
+        user_item_matrix = df \
+            .drop_duplicates(subset=['user', 'missionID'], keep='last') \
+            .pivot(index='user', columns='missionID', values='reward')
 
         x = pd.DataFrame(
-            index=range(n_users),
-            columns=user_item_matrix.columns,
-            dtype=float
+            index=range(self.user_item_matrix.shape[0]),
+            columns=range(self.user_item_matrix.shape[1]),
+            dtype=float,
         )
         x.update(user_item_matrix)
 
         na_mask = ~x.isna().values
         x.fillna(0, inplace=True)
-
+        
         return x.values, na_mask
     
-    def predict(self, user: torch.Tensor, mission: torch.Tensor):
+    def predict(self, user, mission):
         x = self.user_item_matrix[user]
         ratings = self(x)
         return ratings[range(len(mission)), mission]
