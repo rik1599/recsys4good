@@ -86,14 +86,16 @@ numpy.random.seed(0)
 
 policies = {
     'E-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=32, dropout=0.1)),
-    'LinUCB': ctx.LinUCB(n_users, n_missions, n_missions, ctx.ContextManager(n_users=n_users, features=df['mission'].cat.categories)),
-    'Random': pol.RandomBandit(),
-    'E-Greedy-Mean': pol.MeanEpsilonGreedy(),
+    'E-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, hidden_dim=10)),
+    'E-Greedy-MLP':     pol.ModelEpsilonGreedy(model=mod.MLP(n_users, n_missions, embedding_dim=16, hidden_dim=32, dropout=0.1)),
+    'E-Greedy-Mean':    pol.MeanEpsilonGreedy(),
+    'LinUCB':           ctx.LinUCB(n_users, n_missions, n_missions, ctx.ContextManager(n_users=n_users, features=df['mission'].cat.categories)),
+    'Random':           pol.RandomBandit(),
 }
 
 results = pd.concat([
     pd.concat({name: evaluate(policy) for name, policy in tqdm(policies.items(), leave=False)})
-    for _ in tqdm(range(1))
+    for _ in tqdm(range(5))
 ], axis=1)
 
 results
