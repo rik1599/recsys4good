@@ -86,7 +86,7 @@ numpy.random.seed(0)
 
 policies = {
     'E-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=32, dropout=0.1)),
-    'E-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, hidden_dim=10)),
+    'E-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=10)),
     'E-Greedy-MLP':     pol.ModelEpsilonGreedy(model=mod.MLP(n_users, n_missions, embedding_dim=16, hidden_dim=32, dropout=0.1)),
     'E-Greedy-Mean':    pol.MeanEpsilonGreedy(),
     'LinUCB':           ctx.LinUCB(n_users, n_missions, n_missions, ctx.ContextManager(n_users=n_users, features=df['mission'].cat.categories)),
@@ -99,4 +99,4 @@ results = pd.concat([
 ], axis=1)
 
 results
-results.to_csv('./out/replay_results.csv', index=True)
+results.to_csv('./out/replay_results_2.csv', index=True)

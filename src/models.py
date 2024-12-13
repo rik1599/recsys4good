@@ -34,10 +34,11 @@ class MF(nn.Module):
         mission_bias = self.mission_bias(mission)
         
         dot = torch.sum(user_emb * mission_emb, dim=1, keepdim=True) + user_bias + mission_bias
+        dot = dot.view(-1)
 
         if self.training:
-            return dot.squeeze()
-        return torch.relu(dot).squeeze()
+            return dot
+        return torch.relu(dot)
     
     def fit(self, train_df: pd.DataFrame):
         optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
@@ -102,10 +103,11 @@ class MLP(nn.Module):
         
         mlp_input = torch.cat((user_emb, mission_emb), dim=1)
         mlp_out = self.mlp(mlp_input)
+        mlp_out = mlp_out.view(-1)
 
         if self.training:
-            return mlp_out.squeeze()
-        return torch.relu(mlp_out).squeeze()
+            return mlp_out
+        return torch.relu(mlp_out)
     
     def fit(self, train_df: pd.DataFrame):
         optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)

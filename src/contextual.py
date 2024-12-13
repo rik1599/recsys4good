@@ -18,7 +18,7 @@ class ContextManager:
     
     def get(self, user):
         return torch.tensor(self.contexts.loc[user].values, dtype=torch.float32, device=self.device)
-
+    
 
 class LinUCB(Policy):
     def __init__(self, num_users, num_arms, context_dim, context_manager: ContextManager, alpha=1.0, device='cpu'):
