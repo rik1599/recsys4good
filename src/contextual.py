@@ -71,7 +71,7 @@ class LinUCB(Policy):
     
     def update(self, **kwargs):
         train_df: pd.DataFrame = kwargs['train_df']
-        today: pd.DataFrame = train_df[train_df['date'] == kwargs['day']]
+        today: pd.DataFrame = train_df[train_df['createdAt'] == kwargs['day']]
 
         for _, row in today.iterrows():
             user = row['user']
