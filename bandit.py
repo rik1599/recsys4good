@@ -7,7 +7,7 @@ df['mission'] = df['kind'] + '_' + df['TARGET'].astype(str)
 
 df = df[['user', 'mission', 'createdAt', 'kind', 'TARGET', 'performance']]
 df = df.groupby('user').filter(lambda x: x['createdAt'].nunique() > 10)
-df['createdAt'] = pd.to_datetime(df['createdAt'])
+df['createdAt'] = pd.to_datetime(df['createdAt']).dt.date
 
 df['user'] = df['user'].astype('category').cat.codes
 df['mission'] = df['mission'].astype('category')
@@ -70,7 +70,7 @@ def replay(df: pd.DataFrame, policy: pol.Policy, root: TreeNode):
 
 def evaluate(policy) -> pd.DataFrame:
     rewards = replay(df[['user', 'missionID', 'createdAt', 'reward']], policy, root)
-    rewards = rewards.groupby('date')['reward'].sum().cumsum()
+    rewards = rewards.groupby('createdAt')['reward'].sum().cumsum()
 
     return rewards
 
@@ -82,12 +82,11 @@ torch.manual_seed(0)
 numpy.random.seed(0)
 
 policies = {
-    'E-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=32, dropout=0.1)),
-    'E-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=10)),
-    'E-Greedy-MLP':     pol.ModelEpsilonGreedy(model=mod.MLP(n_users, n_missions, embedding_dim=16, hidden_dim=32, dropout=0.1)),
-    'E-Greedy-Mean':    pol.MeanEpsilonGreedy(),
-    'LinUCB':           ctx.LinUCB(n_users, n_missions, n_missions, ctx.ContextManager(n_users=n_users, features=df['mission'].cat.categories)),
-    'Random':           pol.RandomBandit(),
+    '\u03B5-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=32, dropout=0.1)),
+    '\u03B5-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=10)),
+    '\u03B5-Greedy-MLP':     pol.ModelEpsilonGreedy(model=mod.MLP(n_users, n_missions, embedding_dim=16, hidden_dim=32, dropout=0.1)),
+    '\u03B5-Greedy-Mean':    pol.MeanEpsilonGreedy(),
+    'Random':                pol.RandomBandit(),
 }
 
 results = pd.concat([
