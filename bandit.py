@@ -1,21 +1,18 @@
 # %%
 import pandas as pd
 
-df = pd.concat((
-    pd.read_csv('./data/October_missions_full.csv'),
-    pd.read_csv('./data/November_1stW_missions_full.csv')
-), ignore_index=True)
+df = pd.read_csv('./data/October_November_missions_full.csv')
+df.rename(columns={'sub': 'user'}, inplace=True)
+df['mission'] = df['kind'] + '_' + df['TARGET'].astype(str)
 
-df['mission'] = df['type'] + '_' + df['target'].astype(str)
-
-df = df[['user', 'mission', 'createdAtT', 'type', 'target', 'performance']]
-df['createdAtT'] = pd.to_datetime(df['createdAtT'], unit='ms').dt.date
-df = df.groupby('user').filter(lambda x: len(x['createdAtT'].unique()) > 1)
+df = df[['user', 'mission', 'createdAt', 'kind', 'TARGET', 'performance']]
+df = df.groupby('user').filter(lambda x: x['createdAt'].nunique() > 10)
+df['createdAt'] = pd.to_datetime(df['createdAt'])
 
 df['user'] = df['user'].astype('category').cat.codes
 df['mission'] = df['mission'].astype('category')
 df['missionID'] = df['mission'].cat.codes
-df['type'] = df['type'].astype('category')
+df['kind'] = df['kind'].astype('category')
 
 def reward(x):
     if x <= 1:
@@ -23,9 +20,8 @@ def reward(x):
     return max(0, 2 - x**2)
 
 df['reward'] = df['performance'].apply(reward)
-df.rename(columns={'createdAtT': 'date'}, inplace=True)
 
-df.sort_values(by=['date', 'user'], inplace=True, ignore_index=True)
+df.sort_values(by=['createdAt', 'user'], inplace=True, ignore_index=True)
 df
 
 # %%
@@ -37,9 +33,10 @@ n_users, n_missions
 # %%
 from src.tree import TreeNode
 
-missions = df[['missionID', 'type', 'target']].drop_duplicates()
+missions = df[['missionID', 'kind', 'TARGET']].drop_duplicates()
+
 root = TreeNode('root')
-for name, round in missions.groupby('type', observed=True):
+for name, round in missions.groupby('kind', observed=True):
     node = TreeNode(name)
     root.add_child(node)
     for _, mission in round.iterrows():
@@ -57,7 +54,7 @@ from tqdm.auto import tqdm
 def replay(df: pd.DataFrame, policy: pol.Policy, root: TreeNode):
     history = pd.DataFrame()
     tree_bandit = TreeBandit(root, policy)
-    for t, round in tqdm(df.groupby('date'), leave=False):
+    for t, round in tqdm(df.groupby('createdAt'), leave=False):
         day_recs = []
         for u in tqdm(round['user'].unique(), leave=False):
             policy.init()
@@ -70,9 +67,9 @@ def replay(df: pd.DataFrame, policy: pol.Policy, root: TreeNode):
             
     return history
 
-# %%
+
 def evaluate(policy) -> pd.DataFrame:
-    rewards = replay(df[['user', 'missionID', 'date', 'reward']], policy, root)
+    rewards = replay(df[['user', 'missionID', 'createdAt', 'reward']], policy, root)
     rewards = rewards.groupby('date')['reward'].sum().cumsum()
 
     return rewards
@@ -99,4 +96,6 @@ results = pd.concat([
 ], axis=1)
 
 results
-results.to_csv('./out/replay_results_2.csv', index=True)
+results.to_csv('./out/replay_results.csv', index=True)
+
+
