@@ -23,8 +23,8 @@ class MF(nn.Module):
         self.device = kwargs.get('device', 'cpu')
         self.lr = kwargs.get('lr', 0.001)
         self.weight_decay = kwargs.get('weight_decay', 1e-4)
-        self.epochs = kwargs.get('epochs', 20)
-        self.batch_size = kwargs.get('batch_size', 32)
+        self.epochs = kwargs.get('epochs', 10)
+        self.batch_size = kwargs.get('batch_size', 16)
 
 
     def forward(self, user, mission):
@@ -94,8 +94,8 @@ class MLP(nn.Module):
         self.device = kwargs.get('device', 'cpu')
         self.lr = kwargs.get('lr', 0.001)
         self.weight_decay = kwargs.get('weight_decay', 1e-4)
-        self.epochs = kwargs.get('epochs', 20)
-        self.batch_size = kwargs.get('batch_size', 32)
+        self.epochs = kwargs.get('epochs', 10)
+        self.batch_size = kwargs.get('batch_size', 16)
     
     def forward(self, user, mission):
         user_emb = self.user_embedding(user)
@@ -158,8 +158,8 @@ class UserBasedAutoRec(nn.Module):
         self.device = kwargs.get('device', 'cpu')
         self.lr = kwargs.get('lr', 1e-4)
         self.weight_decay = kwargs.get('weight_decay', 1e-5)
-        self.epochs = kwargs.get('epochs', 100)
-        self.batch_size = kwargs.get('batch_size', 32)
+        self.epochs = kwargs.get('epochs', 50)
+        self.batch_size = kwargs.get('batch_size', 16)
 
         self.user_item_matrix = torch.zeros(n_users, n_missions, device=self.device)
         
