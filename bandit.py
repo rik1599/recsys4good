@@ -84,7 +84,7 @@ numpy.random.seed(0)
 policies = {
     '\u03B5-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=16, dropout=0.1)),
     '\u03B5-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=10)),
-    '\u03B5-Greedy-MLP':     pol.ModelEpsilonGreedy(model=mod.MLP(n_users, n_missions, embedding_dim=16, hidden_dim=32, dropout=0.1)),
+    '\u03B5-Greedy-NeuMF':   pol.ModelEpsilonGreedy(model=mod.NeuMF(n_users, n_missions, embedding_dim=10, hidden_dim=8, dropout=0.1)),
     '\u03B5-Greedy-Mean':    pol.MeanEpsilonGreedy(),
     'Random':                pol.RandomBandit(),
 }

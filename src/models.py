@@ -73,23 +73,30 @@ class MF(nn.Module):
         return self(user, mission)
 
 
-class MLP(nn.Module):
+class NeuMF(nn.Module):
     def __init__(self, num_users, num_missions, embedding_dim, hidden_dim, dropout, **kwargs):
-        super(MLP, self).__init__()
+        super(NeuMF, self).__init__()
 
-        self.user_embedding = nn.Embedding(num_users, embedding_dim)
-        self.mission_embedding = nn.Embedding(num_missions, embedding_dim)
+        self.mf_u = nn.Embedding(num_users, embedding_dim)
+        self.mf_m = nn.Embedding(num_missions, embedding_dim)
+        torch.nn.init.xavier_uniform_(self.mf_u.weight)
+        torch.nn.init.xavier_uniform_(self.mf_m.weight)
 
+        self.mlp_u = nn.Embedding(num_users, embedding_dim)
+        self.mlp_m = nn.Embedding(num_missions, embedding_dim)
         self.mlp = nn.Sequential(
-            nn.Linear(2 * embedding_dim, hidden_dim),
+            nn.LazyLinear(hidden_dim),
             nn.ReLU(),
             nn.Dropout(dropout),
-            nn.Linear(hidden_dim, 1)
+            nn.LazyLinear(hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout)
         )
+        torch.nn.init.xavier_uniform_(self.mlp_u.weight)
+        torch.nn.init.xavier_uniform_(self.mlp_m.weight)
 
-        torch.nn.init.xavier_uniform_(self.user_embedding.weight)
-        torch.nn.init.xavier_uniform_(self.mission_embedding.weight)
-
+        self.prediction_layer = nn.LazyLinear(1)
+        
         # Training parameters
         self.device = kwargs.get('device', 'cpu')
         self.lr = kwargs.get('lr', 0.001)
@@ -98,16 +105,20 @@ class MLP(nn.Module):
         self.batch_size = kwargs.get('batch_size', 16)
     
     def forward(self, user, mission):
-        user_emb = self.user_embedding(user)
-        mission_emb = self.mission_embedding(mission)
-        
-        mlp_input = torch.cat((user_emb, mission_emb), dim=1)
-        mlp_out = self.mlp(mlp_input)
-        mlp_out = mlp_out.view(-1)
+        mf_u = self.mf_u(user)
+        mf_m = self.mf_m(mission)
+        mf = mf_u * mf_m
+
+        mlp_u = self.mlp_u(user)
+        mlp_m = self.mlp_m(mission)
+        mlp = self.mlp(torch.cat([mlp_u, mlp_m], dim=1))
+
+        x = torch.cat([mf, mlp], dim=1)
+        x = self.prediction_layer(x).view(-1)
 
         if self.training:
-            return mlp_out
-        return torch.relu(mlp_out)
+            return x
+        return torch.relu(x)
     
     def fit(self, train_df: pd.DataFrame):
         optimizer = optim.Adam(self.parameters(), lr=self.lr, weight_decay=self.weight_decay)
