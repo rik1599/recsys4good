@@ -8,7 +8,7 @@ df.rename(columns={'sub': 'user'}, inplace=True)
 df['mission'] = df['kind'] + '_' + df['TARGET'].astype(str)
 
 df = df[['user', 'mission', 'createdAt', 'kind', 'TARGET', 'performance']]
-df = df.groupby('user').filter(lambda x: x['createdAt'].nunique() > 10)
+df = df.groupby('user').filter(lambda x: x['createdAt'].nunique() > 7)
 df['createdAt'] = pd.to_datetime(df['createdAt']).dt.date
 
 df['user'] = df['user'].astype('category').cat.codes
@@ -30,7 +30,10 @@ df
 n_users = df['user'].max() + 1
 n_missions = df['missionID'].max() + 1
 
-n_users, n_missions
+print(n_users, n_missions)
+
+# %% [markdown]
+# # MABTree
 
 # %%
 from src.tree import TreeNode
@@ -48,7 +51,6 @@ print(root)
 
 # %%
 from src import policy as pol
-from src import contextual as ctx
 from src import models as mod
 from src.tree import TreeBandit
 from tqdm.auto import tqdm
@@ -84,7 +86,6 @@ torch.manual_seed(0)
 numpy.random.seed(0)
 
 policies = {
-    '\u03B5-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=16, dropout=0.1)),
     '\u03B5-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8)),
     '\u03B5-Greedy-NeuMF':   pol.ModelEpsilonGreedy(model=mod.NeuMF(n_users, n_missions, embedding_dim=8, hidden_dim=8, dropout=0.1)),
     '\u03B5-Greedy-Mean':    pol.MeanEpsilonGreedy(),
@@ -98,5 +99,62 @@ results = pd.concat([
 
 results
 results.to_csv('./out/replay_results.csv', index=True)
+
+# %% [markdown]
+# # Baseline
+
+# %%
+missions = df[['missionID', 'kind', 'TARGET']].drop_duplicates().set_index('missionID')
+missions
+
+# %%
+from src import contextual as ctx
+from tqdm.auto import tqdm
+
+def recommend(rank: list, missions: pd.DataFrame, n=1) -> list:
+    ranked_missions = missions.loc[rank] # ranks missions
+    top_missions = ranked_missions.groupby('kind', observed=True, sort=False).head(1) # selects the top mission of each kind
+    return top_missions.index.tolist()[:n] # returns the top n missions
+
+def replay(df: pd.DataFrame, policy: ctx.LinUCB):
+    history = pd.DataFrame()
+    for t, round in tqdm(df.groupby('createdAt'), leave=False):
+        day_recs = []
+        for u in tqdm(round['user'].unique(), leave=False):
+            rank = policy.select(u)
+            recs = [{'user': u, 'missionID': rec} for rec in recommend(rank, missions, n=3)]
+            day_recs += recs
+
+        actions = round.merge(pd.DataFrame(day_recs), on=['user', 'missionID'], how='inner')
+        history = pd.concat((history, actions), ignore_index=True)
+        policy.update(train_df=history, day=t)
+            
+    return history
+
+
+def evaluate(policy) -> pd.DataFrame:
+    rewards = replay(df[['user', 'missionID', 'createdAt', 'reward']], policy)
+    rewards = rewards.groupby('createdAt')['reward'].sum().cumsum()
+
+    return rewards
+
+# %%
+import torch
+import numpy
+
+torch.manual_seed(0)
+numpy.random.seed(0)
+
+policies = {
+    'LinUCB': ctx.LinUCB(n_missions, context_manager=ctx.ContextManager(n_users, n_missions)),
+}
+
+results = pd.concat([
+    pd.concat({name: evaluate(policy) for name, policy in tqdm(policies.items(), leave=False)})
+    for _ in tqdm(range(5))
+], axis=1)
+
+results
+results.to_csv('./out/replay_results_baseline.csv', index=True)
 
 
