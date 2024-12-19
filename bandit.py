@@ -4,16 +4,15 @@ import pandas as pd
 df = pd.read_csv('./data/October_November_missions_full.csv')
 df = df[~df['missionCatalog_id'].isin(['f1455712-fa2b-4feb-b7f9-ab8ddfa29e8d', 'd090d147-1ac9-4963-9c2b-1f5e663bad44'])]
 
-df.rename(columns={'sub': 'user'}, inplace=True)
+df.rename(columns={'sub': 'user', 'missionCatalog_id': 'missionID'}, inplace=True)
 df['mission'] = df['kind'] + '_' + df['TARGET'].astype(str)
 
-df = df[['user', 'mission', 'createdAt', 'kind', 'TARGET', 'performance']]
+df = df[['user', 'missionID', 'createdAt', 'kind', 'TARGET', 'performance']]
 df = df.groupby('user').filter(lambda x: x['createdAt'].nunique() > 7)
 df['createdAt'] = pd.to_datetime(df['createdAt']).dt.date
 
 df['user'] = df['user'].astype('category').cat.codes
-df['mission'] = df['mission'].astype('category')
-df['missionID'] = df['mission'].cat.codes
+df['missionID'] = df['missionID'].astype('category').cat.codes
 df['kind'] = df['kind'].astype('category')
 
 def reward(x):
