@@ -2,6 +2,8 @@
 import pandas as pd
 
 df = pd.read_csv('./data/October_November_missions_full.csv')
+df = df[~df['missionCatalog_id'].isin(['f1455712-fa2b-4feb-b7f9-ab8ddfa29e8d', 'd090d147-1ac9-4963-9c2b-1f5e663bad44'])]
+
 df.rename(columns={'sub': 'user'}, inplace=True)
 df['mission'] = df['kind'] + '_' + df['TARGET'].astype(str)
 
@@ -83,8 +85,8 @@ numpy.random.seed(0)
 
 policies = {
     '\u03B5-Greedy-AutoRec': pol.ModelEpsilonGreedy(model=mod.UserBasedAutoRec(n_users, n_missions, hidden_dim=16, dropout=0.1)),
-    '\u03B5-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=10)),
-    '\u03B5-Greedy-NeuMF':   pol.ModelEpsilonGreedy(model=mod.NeuMF(n_users, n_missions, embedding_dim=10, hidden_dim=8, dropout=0.1)),
+    '\u03B5-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8)),
+    '\u03B5-Greedy-NeuMF':   pol.ModelEpsilonGreedy(model=mod.NeuMF(n_users, n_missions, embedding_dim=8, hidden_dim=8, dropout=0.1)),
     '\u03B5-Greedy-Mean':    pol.MeanEpsilonGreedy(),
     'Random':                pol.RandomBandit(),
 }
