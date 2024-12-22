@@ -90,31 +90,14 @@ class ModelEpsilonGreedy(PolicyWithModel):
         return selected_nodes
 
 
-class PolicyWithMean(Policy, ABC):
-    def __init__(self):
-        super().__init__()
-        self.df = pd.Series()
-
-    def init(self, **kwargs):
-        pass
-
-    def estimate(self, node, **kwargs):
-        user = kwargs['user']
-
-        if node.is_leaf:
-            return self.df.get((user, node.value['missionID']), 0)
-
-        return max(self.estimate(child, user=user) for child in node.children)
-
-    def update(self, **kwargs):
-        self.df = kwargs['train_df'].groupby(
-            ['user', 'missionID'])['reward'].mean()
-
-
-class MeanEpsilonGreedy(PolicyWithMean):
+class MeanEpsilonGreedy(Policy):
     def __init__(self, epsilon=0.1):
         super().__init__()
         self.epsilon = epsilon
+        self.average_rewards = pd.Series()
+    
+    def init(self, **kwargs):
+        pass
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -131,6 +114,64 @@ class MeanEpsilonGreedy(PolicyWithMean):
             selectable_nodes.pop(node)
 
         return selected_nodes
+
+    def estimate(self, node, **kwargs):
+        user = kwargs['user']
+
+        if node.is_leaf:
+            return self.average_rewards.get((user, node.value['missionID']), 0)
+
+        return max(self.estimate(child, user=user) for child in node.children)
+
+    def update(self, **kwargs):
+        self.average_rewards = kwargs['train_df'].groupby(
+            ['user', 'missionID'])['reward'].mean()
+
+
+class MeanUCB(Policy):
+    def __init__(self, exploration_rate=1):
+        super().__init__()
+        self.exploration_rate = exploration_rate
+        self.average_rewards = pd.Series()
+        self.c = pd.Series()
+        self.t = pd.Series()
+    
+    def init(self, **kwargs):
+        pass
+
+    def select(self, nodes, n, **kwargs):
+        user = kwargs['user']
+        selectable_nodes = {node: self.estimate(node, user=user) for node in nodes}
+        selected_nodes = set()
+
+        for _ in range(n):
+            node = max(selectable_nodes, key=selectable_nodes.get)
+            selected_nodes.add(node)
+            selectable_nodes.pop(node)
+
+        return selected_nodes
+    
+    def estimate(self, node, **kwargs):
+        user = kwargs['user']
+
+        if node.is_leaf:
+            mission = node.value['missionID']
+            mean = self.average_rewards.get((user, mission), 0)
+            count = self.c.get((user, mission), 0) # avoid division by zero
+            t = self.t.get(user, 0) # avoid log(0)
+
+            if t == 0 or count == 0:
+                return np.inf
+            
+            return mean + self.exploration_rate * np.sqrt(2 * np.log(t) / count)
+
+        return max(self.estimate(child, user=user) for child in node.children)
+
+    def update(self, **kwargs):
+        new_data = kwargs['train_df'].groupby(['user', 'missionID'])['reward'].agg(['mean', 'count'])
+        self.average_rewards = new_data['mean']
+        self.c = new_data['count']
+        self.t = self.c.groupby('user').sum()
 
 
 class RandomBandit(Policy):

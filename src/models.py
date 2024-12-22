@@ -23,8 +23,8 @@ class MF(nn.Module):
         self.device = kwargs.get('device', 'cpu')
         self.lr = kwargs.get('lr', 0.001)
         self.weight_decay = kwargs.get('weight_decay', 1e-4)
-        self.epochs = kwargs.get('epochs', 10)
-        self.batch_size = kwargs.get('batch_size', 16)
+        self.epochs = kwargs.get('epochs', 20)
+        self.batch_size = kwargs.get('batch_size', 32)
 
 
     def forward(self, user, mission):

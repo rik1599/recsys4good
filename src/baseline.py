@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import pandas as pd
 
 class ContextManager:
@@ -68,3 +69,62 @@ class LinUCB:
             self.b[a] += row['reward'] * x
 
         self.context_manager.update(train_df)
+    
+
+class EpsilonGreedy:
+    def __init__(self, num_arms, epsilon=0.1):
+        super().__init__()
+        self.epsilon = epsilon
+        self.num_arms = num_arms
+        self.average_rewards = pd.Series()
+
+    def select(self, user):
+        selectable = {
+            arm: self.average_rewards.get((user, arm), 0)
+            for arm in range(self.num_arms)
+        }
+        rank = []
+
+        for _ in range(self.num_arms):
+            if np.random.rand() < self.epsilon:
+                x = np.random.choice(list(selectable.keys()))
+            else:
+                x = max(selectable, key=selectable.get)
+            rank.append(x)
+            selectable.pop(x)
+
+        return rank
+
+    def update(self, **kwargs):
+        self.average_rewards = kwargs['train_df'].groupby(
+            ['user', 'missionID'])['reward'].mean()
+
+
+class UCB1:
+    def __init__(self, num_arms, exploration_rate=1):
+        super().__init__()
+        self.exploration_rate = exploration_rate
+        self.num_arms = num_arms
+        self.average_rewards = pd.Series()
+        self.c = pd.Series()
+        self.t = pd.Series()
+
+    def select(self, user):
+        arms = np.array([self.estimate(arm, user) for arm in range(self.num_arms)])
+        return arms.argsort()[::-1].tolist()
+
+    def estimate(self, arm, user):
+        mean = self.average_rewards.get((user, arm), 0)
+        count = self.c.get((user, arm), 0) # avoid division by zero
+        t = self.t.get(user, 0) # avoid log(0)
+
+        if count == 0 or t == 0:
+            return np.inf
+
+        return mean + self.exploration_rate * np.sqrt(np.log(t) / count)
+    
+    def update(self, **kwargs):
+        new_data = kwargs['train_df'].groupby(['user', 'missionID'])['reward'].agg(['mean', 'count'])
+        self.average_rewards = new_data['mean']
+        self.c = new_data['count']
+        self.t = self.c.groupby('user').sum()

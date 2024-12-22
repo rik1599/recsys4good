@@ -85,10 +85,11 @@ torch.manual_seed(0)
 numpy.random.seed(0)
 
 policies = {
-    '\u03B5-Greedy-MF':      pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8)),
-    '\u03B5-Greedy-NeuMF':   pol.ModelEpsilonGreedy(model=mod.NeuMF(n_users, n_missions, embedding_dim=8, hidden_dim=8, dropout=0.1)),
-    '\u03B5-Greedy-Mean':    pol.MeanEpsilonGreedy(),
-    'Random':                pol.RandomBandit(),
+    'MABTree \u03B5-greedy MF': pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8)),
+    'MABTree \u03B5-greedy': pol.MeanEpsilonGreedy(),
+    'MABTree UCB1': pol.MeanUCB(),
+    'Random': pol.RandomBandit(),
+    #'\u03B5-Greedy-NeuMF':   pol.ModelEpsilonGreedy(model=mod.NeuMF(n_users, n_missions, embedding_dim=8, hidden_dim=8, dropout=0.1)),
 }
 
 results = pd.concat([
@@ -107,7 +108,7 @@ missions = df[['missionID', 'kind', 'TARGET']].drop_duplicates().set_index('miss
 missions
 
 # %%
-from src import contextual as ctx
+from src import baseline as ctx
 from tqdm.auto import tqdm
 
 def recommend(rank: list, missions: pd.DataFrame, n=1) -> list:
@@ -145,6 +146,8 @@ torch.manual_seed(0)
 numpy.random.seed(0)
 
 policies = {
+    '\u03B5-Greedy': ctx.EpsilonGreedy(n_missions),
+    'UCB1': ctx.UCB1(n_missions),
     'LinUCB': ctx.LinUCB(n_missions, context_manager=ctx.ContextManager(n_users, n_missions)),
 }
 
