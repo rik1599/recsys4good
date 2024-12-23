@@ -85,7 +85,7 @@ torch.manual_seed(0)
 numpy.random.seed(0)
 
 policies = {
-    'MABTree \u03B5-greedy MF': pol.ModelEpsilonGreedy(model=mod.MF(n_users, n_missions, embedding_dim=8)),
+    'MABTree \u03B5-greedy MF': pol.MABTreeEpsilonGreedyML(model=mod.MF(n_users, n_missions, embedding_dim=8)),
     'MABTree \u03B5-greedy': pol.MeanEpsilonGreedy(),
     'MABTree UCB1': pol.MeanUCB(),
     'Random': pol.RandomBandit(),

@@ -38,40 +38,17 @@ class Policy(ABC):
         pass
 
 
-class PolicyWithModel(Policy, ABC):
-    """
-    Abstract base class for a selection policy that uses an estimator.
-    """
-
-    def __init__(self, model: nn.Module):
-        super().__init__()
-        self.model = model
-        self.round_stats = {}
+class MABTreeEpsilonGreedyML(Policy):
+    def __init__(self, model_class, epsilon=0.1, **model_kwargs):
+        self.model_class = model_class
+        self.model_params = model_kwargs
+        self.epsilon = epsilon
 
     def init(self, **kwargs):
         """Reset the round stats"""
+        if kwargs.get('reset_model', False):
+            self.model = self.model_class(**self.model_params)
         self.round_stats = {}
-
-    def estimate(self, node, **kwargs):
-        user = kwargs['user']
-        if node not in self.round_stats and node.is_leaf:
-            data = self.model.predict([user], [node.value['missionID']]).item()
-            self.round_stats[node] = data
-
-        if node.is_leaf:
-            return self.round_stats[node]
-
-        return max(self.estimate(child, user=user) for child in node.children)
-
-    def update(self, **kwargs):
-        train_df: pd.DataFrame = kwargs['train_df']
-        self.model.fit(train_df)
-
-
-class ModelEpsilonGreedy(PolicyWithModel):
-    def __init__(self, model: nn.Module, epsilon=0.1):
-        super().__init__(model)
-        self.epsilon = epsilon
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -88,9 +65,23 @@ class ModelEpsilonGreedy(PolicyWithModel):
             selectable_nodes.pop(node)
 
         return selected_nodes
+    
+    def estimate(self, node, **kwargs):
+        user = kwargs['user']
+        if node not in self.round_stats and node.is_leaf:
+            data = self.model.predict([user], [node.value['missionID']]).item()
+            self.round_stats[node] = data
 
+        if node.is_leaf:
+            return self.round_stats[node]
 
-class MeanEpsilonGreedy(Policy):
+        return max(self.estimate(child, user=user) for child in node.children)
+    
+    def update(self, **kwargs):
+        train_df: pd.DataFrame = kwargs['train_df']
+        self.model.fit(train_df)
+
+class MABTreeEpsilonGreedy(Policy):
     def __init__(self, epsilon=0.1):
         super().__init__()
         self.epsilon = epsilon
@@ -128,7 +119,7 @@ class MeanEpsilonGreedy(Policy):
             ['user', 'missionID'])['reward'].mean()
 
 
-class MeanUCB(Policy):
+class MABTreeUCB(Policy):
     def __init__(self, exploration_rate=1):
         super().__init__()
         self.exploration_rate = exploration_rate
@@ -174,7 +165,7 @@ class MeanUCB(Policy):
         self.t = self.c.groupby('user').sum()
 
 
-class RandomBandit(Policy):
+class MABTReeRandom(Policy):
     def init(self, **kwargs):
         pass
 

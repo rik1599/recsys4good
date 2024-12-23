@@ -43,6 +43,10 @@ class TreeBandit:
         """
         Traverse the tree from the root to a leaf node using the policy.
         """
+        self.policy.init() # Reset the policy stats
+        return self.__recursive_select(n, node, **kwargs)
+
+    def __recursive_select(self, n, node, **kwargs):
         if node is None:
             node = self.root
         
@@ -50,8 +54,7 @@ class TreeBandit:
             return {node}
         
         selected = self.policy.select(node.children, n[0], **kwargs)
-        return set.union(*[self.select(n[1:], child, **kwargs) for child in selected])
-
+        return set.union(*[self.__recursive_select(n[1:], child, **kwargs) for child in selected])
 
     def update(self, leaf_node, reward):
         """
