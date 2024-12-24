@@ -3,17 +3,22 @@ import numpy as np
 import pandas as pd
 from .policy import Policy
 
+
 class ContextManager:
     def __init__(self, n_users, n_features, device='cpu'):
-        self.contexts = pd.DataFrame(
-            index=range(n_users),
-            columns=range(n_features),
-            data=0,
-            dtype=float,
-        )
+        self.n_users = n_users
+        self.n_features = n_features
         self.device = device
         self.context_dim = n_features
     
+    def init(self):
+        self.contexts = pd.DataFrame(
+            index=range(self.n_users),
+            columns=range(self.n_features),
+            data=0,
+            dtype=float,
+        )
+
     def update(self, df: pd.DataFrame):
 
         user_item_matrix = df \
@@ -21,16 +26,16 @@ class ContextManager:
             .pivot(index='user', columns='missionID', values='reward') \
             .fillna(0)
         self.contexts.update(user_item_matrix)
-    
+
     def get(self, user):
         return torch.tensor(self.contexts.loc[user].values, dtype=torch.float32, device=self.device)
-    
+
 
 class LinUCB(Policy):
     def __init__(self, num_arms, context_manager: ContextManager, alpha=1.0, device='cpu'):
         """
         Initialize the LinUCB algorithm.
-        
+
         Args:
             num_arms: Number of arms (actions).
             context_dim: Dimensionality of the context vectors.
@@ -41,13 +46,14 @@ class LinUCB(Policy):
         self.alpha = alpha
         self.device = device
         self.context_manager = context_manager
-        
-        # Initialize arm-specific parameters
-        self.A = [torch.eye(self.context_dim, device=self.device) for _ in range(num_arms)]  # (num_arms, context_dim, context_dim)
-        self.b = [torch.zeros(self.context_dim, device=self.device) for _ in range(num_arms)]
-    
+
     def init(self, **kwargs):
-        pass
+        if 'reset_model' in kwargs:
+            self.A = [torch.eye(self.context_dim, device=self.device)
+                      for _ in range(self.num_arms)]
+            self.b = [torch.zeros(self.context_dim, device=self.device)
+                      for _ in range(self.num_arms)]
+            self.context_manager.init()
 
     def select(self, user):
         x = self.context_manager.get(user)
@@ -57,12 +63,11 @@ class LinUCB(Policy):
             A_inv = torch.linalg.inv(self.A[a])
             theta = A_inv @ self.b[a]
             p[a] = theta.t() @ x + self.alpha * torch.sqrt(x.t() @ A_inv @ x)
-        
+
         return p.argsort(descending=True).tolist()
-    
+
     def estimate(self, node, **kwargs):
         pass
-
 
     def update(self, train_df: pd.DataFrame, day: int):
         today = train_df[train_df['createdAt'] == day]
@@ -75,7 +80,7 @@ class LinUCB(Policy):
             self.b[a] += row['reward'] * x
 
         self.context_manager.update(train_df)
-    
+
 
 class EpsilonGreedy(Policy):
     def __init__(self, num_arms, epsilon=0.1):
@@ -103,7 +108,7 @@ class EpsilonGreedy(Policy):
             selectable.pop(x)
 
         return rank
-    
+
     def estimate(self, node, **kwargs):
         pass
 
@@ -125,21 +130,23 @@ class UCB1(Policy):
         pass
 
     def select(self, user):
-        arms = np.array([self.estimate(arm, user) for arm in range(self.num_arms)])
+        arms = np.array([self.estimate(arm, user)
+                        for arm in range(self.num_arms)])
         return arms.argsort()[::-1].tolist()
 
     def estimate(self, arm, user):
         mean = self.average_rewards.get((user, arm), 0)
-        count = self.c.get((user, arm), 0) # avoid division by zero
-        t = self.t.get(user, 0) # avoid log(0)
+        count = self.c.get((user, arm), 0)  # avoid division by zero
+        t = self.t.get(user, 0)  # avoid log(0)
 
         if count == 0 or t == 0:
             return np.inf
 
         return mean + self.exploration_rate * np.sqrt(np.log(t) / count)
-    
+
     def update(self, **kwargs):
-        new_data = kwargs['train_df'].groupby(['user', 'missionID'])['reward'].agg(['mean', 'count'])
+        new_data = kwargs['train_df'].groupby(['user', 'missionID'])[
+            'reward'].agg(['mean', 'count'])
         self.average_rewards = new_data['mean']
         self.c = new_data['count']
         self.t = self.c.groupby('user').sum()

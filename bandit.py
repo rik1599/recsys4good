@@ -88,6 +88,7 @@ def replay(df: pd.DataFrame, policy: pol.Policy, **kwargs):
 
     history = pd.DataFrame()
     all_recs = []
+    policy.init(reset_model=True) # resets the policy
     for t, round in tqdm(df.groupby('createdAt'), leave=False):
         day_recs = []
         for u in tqdm(round['user'].unique(), leave=False):
@@ -135,7 +136,7 @@ def repeated_evaluation(policies: dict, replay_fn, n=10, **kwargs) -> list[pd.Da
         round_entropies = dict()
         round_coverages = dict()
         for name, policy in tqdm(policies.items(), leave=False):
-            round_rewards[name], round_entropies[name], round_coverages['name'] = evaluate(policy, replay_fn, **kwargs)
+            round_rewards[name], round_entropies[name], round_coverages[name] = evaluate(policy, replay_fn, **kwargs)
     
         metrics[0].append(pd.concat(round_rewards))
         metrics[1].append(round_entropies)
