@@ -48,10 +48,18 @@ for name, round in missions.groupby('kind', observed=True):
 
 print(root)
 
+missions = missions.set_index('missionID')
+
 # %%
 from src import policy as pol
 from src.tree import TreeBandit
 from tqdm.auto import tqdm
+
+def recommend(rank: list, missions: pd.DataFrame, n=1) -> list:
+    ranked_missions = missions.loc[rank] # ranks missions
+    top_missions = ranked_missions.groupby('kind', observed=True, sort=False).head(1) # selects the top mission of each kind
+    return top_missions.index.tolist()[:n] # returns the top n missions
+
 
 def replay_mabtree(df: pd.DataFrame, policy: pol.Policy, **kwargs):
     root = kwargs.get('root', None)
@@ -72,16 +80,10 @@ def replay_mabtree(df: pd.DataFrame, policy: pol.Policy, **kwargs):
         history = pd.concat((history, actions), ignore_index=True)
         policy.update(train_df=history, day=t)
             
-    return history, pd.DataFrame(all_recs)
+    return history, all_recs
 
 
-def recommend(rank: list, missions: pd.DataFrame, n=1) -> list:
-    ranked_missions = missions.loc[rank] # ranks missions
-    top_missions = ranked_missions.groupby('kind', observed=True, sort=False).head(1) # selects the top mission of each kind
-    return top_missions.index.tolist()[:n] # returns the top n missions
-
-
-def replay(df: pd.DataFrame, policy, **kwargs):
+def replay(df: pd.DataFrame, policy: pol.Policy, **kwargs):
     missions = kwargs.get('missions', None)
 
     history = pd.DataFrame()
@@ -98,7 +100,7 @@ def replay(df: pd.DataFrame, policy, **kwargs):
         history = pd.concat((history, actions), ignore_index=True)
         policy.update(train_df=history, day=t)
             
-    return history, pd.DataFrame(all_recs)
+    return history, all_recs
 
 # %%
 from collections import Counter
@@ -110,34 +112,40 @@ def calculate_entropy(data):
     return - sum([count/n * np.log2(count/n) for count in counter.values()])
 
 
+def calculate_coverage(data):
+    return len(set(data)) / n_missions
+
+
 def evaluate(policy, replay, **kwargs) -> tuple[pd.DataFrame, float]:
     rewards, recs = replay(df[['user', 'missionID', 'createdAt', 'reward']], policy, **kwargs)
 
+    recs = pd.DataFrame(recs)
     entropy = recs.groupby('user')['missionID'].agg(calculate_entropy).mean()
+    coverage = recs.groupby('user')['missionID'].agg(calculate_coverage).mean()
     rewards = rewards.groupby('createdAt')['reward'].sum().cumsum()
 
-    return rewards, entropy
+    return rewards, entropy, coverage
 
 
-def repeated_evaluation(policies: dict, replay_fn, n=10, **kwargs):
-    cumul_rewards = []
-    entropies = []
+def repeated_evaluation(policies: dict, replay_fn, n=10, **kwargs) -> list[pd.DataFrame]:
+    metrics = [[], [], []]
 
     for _ in tqdm(range(n)):
         round_rewards = dict()
         round_entropies = dict()
+        round_coverages = dict()
         for name, policy in tqdm(policies.items(), leave=False):
-            reward, entropy = evaluate(policy, replay_fn, **kwargs)
-            round_rewards[name] = reward
-            round_entropies[name] = entropy
+            round_rewards[name], round_entropies[name], round_coverages['name'] = evaluate(policy, replay_fn, **kwargs)
     
-        cumul_rewards.append(pd.concat(round_rewards))
-        entropies.append(round_entropies)
+        metrics[0].append(pd.concat(round_rewards))
+        metrics[1].append(round_entropies)
+        metrics[2].append(round_coverages)
 
-    cumul_rewards = pd.concat(cumul_rewards, axis=1)
-    entropies = pd.DataFrame(entropies)
+    metrics[0] = pd.concat(metrics[0], axis=1)
+    metrics[1] = pd.DataFrame(metrics[1])
+    metrics[2] = pd.DataFrame(metrics[2])
 
-    return cumul_rewards, entropies
+    return metrics
 
 # %%
 import torch
@@ -155,16 +163,10 @@ policies = {
     'MABTree Random': pol.MABTReeRandom(),
 }
 
-cumul_rewards, entropies = repeated_evaluation(policies, replay_mabtree, root=root)
-cumul_rewards.to_csv('./out/mabtree_rewards.csv', index=True)
-entropies.to_csv('./out/mabtree_entropies.csv', index=True)
-
-# %% [markdown]
-# # Baseline
-
-# %%
-missions = df[['missionID', 'kind', 'TARGET']].drop_duplicates().set_index('missionID')
-missions
+metrics = repeated_evaluation(policies, replay_mabtree, root=root)
+metrics[0].to_csv('./out/mabtree_rewards.csv', index=True)
+metrics[1].to_csv('./out/mabtree_entropies.csv', index=True)
+metrics[2].to_csv('./out/mabtree_coverages.csv', index=True)
 
 # %%
 import torch
@@ -180,8 +182,9 @@ policies = {
     '\u03B5-greedy': base.EpsilonGreedy(num_arms=n_missions),
 }
 
-cumul_rewards, entropies = repeated_evaluation(policies, replay, missions=missions)
-cumul_rewards.to_csv('./out/baseline_rewards.csv', index=True)
-entropies.to_csv('./out/baseline_entropies.csv', index=True)
+metrics = repeated_evaluation(policies, replay, missions=missions)
+metrics[0].to_csv('./out/baseline_rewards.csv', index=True)
+metrics[1].to_csv('./out/baseline_entropies.csv', index=True)
+metrics[2].to_csv('./out/baseline_coverages.csv', index=True)
 
 

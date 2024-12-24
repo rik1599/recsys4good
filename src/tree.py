@@ -55,9 +55,3 @@ class TreeBandit:
         
         selected = self.policy.select(node.children, n[0], **kwargs)
         return set.union(*[self.__recursive_select(n[1:], child, **kwargs) for child in selected])
-
-    def update(self, leaf_node, reward):
-        """
-        Update the policy with a reward from a selected leaf node.
-        """
-        self.policy.update(leaf_node, reward)

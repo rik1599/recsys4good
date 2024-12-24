@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import pandas as pd
+from .policy import Policy
 
 class ContextManager:
     def __init__(self, n_users, n_features, device='cpu'):
@@ -25,7 +26,7 @@ class ContextManager:
         return torch.tensor(self.contexts.loc[user].values, dtype=torch.float32, device=self.device)
     
 
-class LinUCB:
+class LinUCB(Policy):
     def __init__(self, num_arms, context_manager: ContextManager, alpha=1.0, device='cpu'):
         """
         Initialize the LinUCB algorithm.
@@ -45,6 +46,8 @@ class LinUCB:
         self.A = [torch.eye(self.context_dim, device=self.device) for _ in range(num_arms)]  # (num_arms, context_dim, context_dim)
         self.b = [torch.zeros(self.context_dim, device=self.device) for _ in range(num_arms)]
     
+    def init(self, **kwargs):
+        pass
 
     def select(self, user):
         x = self.context_manager.get(user)
@@ -56,6 +59,9 @@ class LinUCB:
             p[a] = theta.t() @ x + self.alpha * torch.sqrt(x.t() @ A_inv @ x)
         
         return p.argsort(descending=True).tolist()
+    
+    def estimate(self, node, **kwargs):
+        pass
 
 
     def update(self, train_df: pd.DataFrame, day: int):
@@ -71,12 +77,15 @@ class LinUCB:
         self.context_manager.update(train_df)
     
 
-class EpsilonGreedy:
+class EpsilonGreedy(Policy):
     def __init__(self, num_arms, epsilon=0.1):
         super().__init__()
         self.epsilon = epsilon
         self.num_arms = num_arms
         self.average_rewards = pd.Series()
+
+    def init(self, **kwargs):
+        pass
 
     def select(self, user):
         selectable = {
@@ -94,13 +103,16 @@ class EpsilonGreedy:
             selectable.pop(x)
 
         return rank
+    
+    def estimate(self, node, **kwargs):
+        pass
 
     def update(self, **kwargs):
         self.average_rewards = kwargs['train_df'].groupby(
             ['user', 'missionID'])['reward'].mean()
 
 
-class UCB1:
+class UCB1(Policy):
     def __init__(self, num_arms, exploration_rate=1):
         super().__init__()
         self.exploration_rate = exploration_rate
@@ -108,6 +120,9 @@ class UCB1:
         self.average_rewards = pd.Series()
         self.c = pd.Series()
         self.t = pd.Series()
+
+    def init(self, **kwargs):
+        pass
 
     def select(self, user):
         arms = np.array([self.estimate(arm, user) for arm in range(self.num_arms)])
