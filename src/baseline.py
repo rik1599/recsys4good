@@ -48,12 +48,9 @@ class LinUCB(Policy):
         self.context_manager = context_manager
 
     def init(self, **kwargs):
-        if 'reset_model' in kwargs:
-            self.A = [torch.eye(self.context_dim, device=self.device)
-                      for _ in range(self.num_arms)]
-            self.b = [torch.zeros(self.context_dim, device=self.device)
-                      for _ in range(self.num_arms)]
-            self.context_manager.init()
+        self.A = [torch.eye(self.context_dim, device=self.device) for _ in range(self.num_arms)]
+        self.b = [torch.zeros(self.context_dim, device=self.device) for _ in range(self.num_arms)]
+        self.context_manager.init()
 
     def select(self, user):
         x = self.context_manager.get(user)
@@ -87,10 +84,9 @@ class EpsilonGreedy(Policy):
         super().__init__()
         self.epsilon = epsilon
         self.num_arms = num_arms
-        self.average_rewards = pd.Series()
 
     def init(self, **kwargs):
-        pass
+        self.average_rewards = pd.Series()
 
     def select(self, user):
         selectable = {
@@ -122,12 +118,11 @@ class UCB1(Policy):
         super().__init__()
         self.exploration_rate = exploration_rate
         self.num_arms = num_arms
+
+    def init(self, **kwargs):
         self.average_rewards = pd.Series()
         self.c = pd.Series()
         self.t = pd.Series()
-
-    def init(self, **kwargs):
-        pass
 
     def select(self, user):
         arms = np.array([self.estimate(arm, user)

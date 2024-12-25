@@ -38,17 +38,21 @@ class Policy(ABC):
         pass
 
 
-class MABTreeEpsilonGreedyML(Policy):
+class MABTreePolicy(ABC, Policy):
+    def reset(self):
+        self.round_stats = {}
+
+class MABTreeEpsilonGreedyML(MABTreePolicy):
     def __init__(self, model_class, epsilon=0.1, **model_kwargs):
         self.model_class = model_class
         self.model_params = model_kwargs
         self.epsilon = epsilon
 
+
     def init(self, **kwargs):
         """Reset the round stats"""
-        if kwargs.get('reset_model', False):
-            self.model = self.model_class(**self.model_params)
-        self.round_stats = {}
+        self.model = self.model_class(**self.model_params)
+
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -81,14 +85,13 @@ class MABTreeEpsilonGreedyML(Policy):
         train_df: pd.DataFrame = kwargs['train_df']
         self.model.fit(train_df)
 
-class MABTreeEpsilonGreedy(Policy):
+class MABTreeEpsilonGreedy(MABTreePolicy):
     def __init__(self, epsilon=0.1):
         super().__init__()
         self.epsilon = epsilon
-        self.average_rewards = pd.Series()
     
     def init(self, **kwargs):
-        pass
+        self.average_rewards = pd.Series()
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -119,16 +122,15 @@ class MABTreeEpsilonGreedy(Policy):
             ['user', 'missionID'])['reward'].mean()
 
 
-class MABTreeUCB(Policy):
+class MABTreeUCB(MABTreePolicy):
     def __init__(self, exploration_rate=1):
         super().__init__()
         self.exploration_rate = exploration_rate
+    
+    def init(self, **kwargs):
         self.average_rewards = pd.Series()
         self.c = pd.Series()
         self.t = pd.Series()
-    
-    def init(self, **kwargs):
-        pass
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']
@@ -165,7 +167,7 @@ class MABTreeUCB(Policy):
         self.t = self.c.groupby('user').sum()
 
 
-class MABTReeRandom(Policy):
+class MABTReeRandom(MABTreePolicy):
     def init(self, **kwargs):
         pass
 

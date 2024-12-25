@@ -43,7 +43,7 @@ class TreeBandit:
         """
         Traverse the tree from the root to a leaf node using the policy.
         """
-        self.policy.init() # Reset the policy stats
+        self.policy.reset() # Reset the cache for the current call
         return self.__recursive_select(n, node, **kwargs)
 
     def __recursive_select(self, n, node, **kwargs):
