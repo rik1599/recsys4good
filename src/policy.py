@@ -38,9 +38,10 @@ class Policy(ABC):
         pass
 
 
-class MABTreePolicy(ABC, Policy):
+class MABTreePolicy(Policy):
     def reset(self):
         self.round_stats = {}
+
 
 class MABTreeEpsilonGreedyML(MABTreePolicy):
     def __init__(self, model_class, epsilon=0.1, **model_kwargs):
@@ -48,11 +49,8 @@ class MABTreeEpsilonGreedyML(MABTreePolicy):
         self.model_params = model_kwargs
         self.epsilon = epsilon
 
-
     def init(self, **kwargs):
-        """Reset the round stats"""
         self.model = self.model_class(**self.model_params)
-
 
     def select(self, nodes, n, **kwargs):
         user = kwargs['user']

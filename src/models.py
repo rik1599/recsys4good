@@ -21,9 +21,9 @@ class MF(nn.Module):
 
         # Training parameters
         self.device = kwargs.get('device', 'cpu')
-        self.lr = kwargs.get('lr', 0.001)
+        self.lr = kwargs.get('lr', 1e-2)
         self.weight_decay = kwargs.get('weight_decay', 1e-4)
-        self.epochs = kwargs.get('epochs', 20)
+        self.epochs = kwargs.get('epochs', 30)
         self.batch_size = kwargs.get('batch_size', 32)
 
     def forward(self, user, mission):

@@ -20,7 +20,6 @@ class ContextManager:
         )
 
     def update(self, df: pd.DataFrame):
-
         user_item_matrix = df \
             .drop_duplicates(['user', 'missionID'], keep='last') \
             .pivot(index='user', columns='missionID', values='reward') \
