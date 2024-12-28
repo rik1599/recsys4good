@@ -91,7 +91,7 @@ def replay(df: pd.DataFrame, recommeder: MABRecommender):
     for t, round in tqdm(df.groupby('createdAt'), leave=False):
         day_recs = []
         for u in tqdm(round['user'].unique(), leave=False):
-            user_recs = [{'user': u, 'missionID': m} for m in recommeder.recommend(u)]
+            user_recs = [{'date': t, 'user': u, 'missionID': m} for m in recommeder.recommend(u)]
             day_recs += user_recs
         
         policy_recommendations += day_recs
@@ -102,14 +102,38 @@ def replay(df: pd.DataFrame, recommeder: MABRecommender):
     return history, pd.DataFrame(policy_recommendations)
 
 # %%
+from itertools import combinations
+
+def inter_list_diversity(df: pd.DataFrame):
+    def cosine_distance(x, y):
+        return 1 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+
+    def inter_list_diversity_per_day(df: pd.DataFrame):
+        # Calculate on sample of 100 users to reduce computation time
+        users = np.random.choice(df['user'].unique(), 100, replace=False)
+        groups = df.groupby('user')['missionID'].apply(list)
+        pairs = list(combinations(users, 2))
+        return np.mean([cosine_distance(groups[u1], groups[u2]) for u1, u2 in pairs])
+    
+    return df.groupby('date').apply(inter_list_diversity_per_day).mean()
+
+def per_day_entropy(df: pd.DataFrame):
+    def entropy(x):
+        _, counts = np.unique(x, return_counts=True)
+        return -np.sum(counts * np.log(counts)) / len(x)
+
+    return df.groupby('date')['missionID'].apply(entropy).mean()
+
 def avg_coverage(df: pd.DataFrame):
     return df.groupby('user')['missionID'].nunique().apply(lambda x: x / n_missions).mean()
+
+def cumulative_reward(df: pd.DataFrame):
+    return df.groupby('createdAt')['reward'].sum().cumsum()
 
 def evaluate(recommender: MABRecommender):
     history, policy_recommendations = replay(df[['user', 'missionID', 'createdAt', 'reward']], recommender)
 
-    cumulated_reward = history.groupby('createdAt')['reward'].sum().cumsum()
-    return cumulated_reward, avg_coverage(policy_recommendations)
+    return cumulative_reward(history), avg_coverage(policy_recommendations), per_day_entropy(policy_recommendations)
 
 # %%
 import torch
@@ -141,7 +165,7 @@ metrics = [
 
 pd.concat([
     pd.concat({
-        name: reward for name, (reward, _) in metric.items()
+        name: reward for name, (reward, _, _) in metric.items()
     }) for metric in metrics
 ], axis=1).to_csv('./out/cumulated_reward.csv', index=True)
 
@@ -149,8 +173,16 @@ pd.concat([
 # Coverage dataframe
 
 pd.DataFrame([
-    {name: coverage for name, (_, coverage) in metric.items()}
+    {name: coverage for name, (_, coverage, _) in metric.items()}
     for metric in metrics
 ]).to_csv('./out/coverage.csv', index=True)
+
+# %%
+# Inter-list diversity dataframe
+
+pd.DataFrame([
+    {name: diversity for name, (_, _, diversity) in metric.items()}
+    for metric in metrics
+]).to_csv('./out/diversity.csv', index=True)
 
 
