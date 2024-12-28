@@ -102,21 +102,6 @@ def replay(df: pd.DataFrame, recommeder: MABRecommender):
     return history, pd.DataFrame(policy_recommendations)
 
 # %%
-from itertools import combinations
-
-def inter_list_diversity(df: pd.DataFrame):
-    def cosine_distance(x, y):
-        return 1 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
-
-    def inter_list_diversity_per_day(df: pd.DataFrame):
-        # Calculate on sample of 100 users to reduce computation time
-        users = np.random.choice(df['user'].unique(), 100, replace=False)
-        groups = df.groupby('user')['missionID'].apply(list)
-        pairs = list(combinations(users, 2))
-        return np.mean([cosine_distance(groups[u1], groups[u2]) for u1, u2 in pairs])
-    
-    return df.groupby('date').apply(inter_list_diversity_per_day).mean()
-
 def per_day_entropy(df: pd.DataFrame):
     def entropy(x):
         _, counts = np.unique(x, return_counts=True)
