@@ -105,7 +105,7 @@ def replay(df: pd.DataFrame, recommeder: MABRecommender):
 def per_day_entropy(df: pd.DataFrame):
     def entropy(x):
         _, counts = np.unique(x, return_counts=True)
-        return -np.sum(counts * np.log(counts)) / len(x)
+        return - np.sum(counts / len(x) * np.log2(counts / len(x)))
 
     return df.groupby('date')['missionID'].apply(entropy).mean()
 
