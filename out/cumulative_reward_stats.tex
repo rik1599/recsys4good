@@ -1,0 +1,18 @@
+\begin{table}[t]
+\centering
+\caption{Cumulative reward statistics. The best and second best values of each column are highlighted in bold and underlined, respectively. The worst value is italicized.}
+\label{tab:cumulative_reward_stats}
+\begin{tabular}{lrrrrr}
+\toprule
+ & mean & std & min & max & 50% \\
+\midrule
+MABTree Random & 3463.924 & \underline{41.518} & 3399.438 & 3518.376 & 3462.780 \\
+MABTree UCB & 3284.784 & 0.000 & 3284.784 & 3284.784 & 3284.784 \\
+MABTree 0.1-greedy & \textbf{3961.242} & 40.808 & \textbf{3884.351} & \textbf{4027.090} & \textbf{3969.181} \\
+MABTree 0.1-greedy MF & \underline{3761.619} & \textbf{68.976} & \underline{3657.897} & \underline{3895.832} & \underline{3753.997} \\
+0.1-greedy & 3396.079 & 40.840 & 3314.170 & 3463.207 & 3399.187 \\
+UCB & \textit{3115.336} & 0.000 & \textit{3115.336} & \textit{3115.336} & \textit{3115.336} \\
+LinUCB & 3552.908 & \textit{0.000} & 3552.908 & 3552.908 & 3552.908 \\
+\bottomrule
+\end{tabular}
+\end{table}
