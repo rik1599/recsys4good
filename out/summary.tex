@@ -1,0 +1,19 @@
+\begin{table}[H]
+\centering
+\caption{Mean and standard deviation of cumulated reward, coverage and entropy for each setup. For each metric, the best and second best setups are highlighted in bold and underlined, respectively. The worst setup is highlighted in italic.}
+\label{tab:summary}
+\begin{tabular}{lrrrrrr}
+\toprule
+ & \multicolumn{2}{c}{Cumulated reward} & \multicolumn{2}{c}{Coverage} & \multicolumn{2}{c}{Entropy} \\
+ & mean & std & mean & std & mean & std \\
+\midrule
+MABTree Random & 3463.92 & \underline{41.52} & \textbf{0.81} & 0.00 & \textbf{4.66} & 0.00 \\
+MABTree UCB & 3284.78 & 0.00 & 0.39 & 0.00 & 4.00 & 0.00 \\
+MABTree 0.1-greedy & \textbf{3961.24} & 40.81 & 0.34 & 0.00 & 2.72 & \underline{0.02} \\
+MABTree 0.1-greedy MF & \underline{3761.62} & \textbf{68.98} & \underline{0.73} & \textbf{0.01} & \underline{4.19} & \textbf{0.03} \\
+0.1-greedy & 3396.08 & 40.84 & \textit{0.33} & \underline{0.00} & \textit{2.61} & 0.01 \\
+UCB & \textit{3115.34} & 0.00 & 0.44 & 0.00 & 4.11 & 0.00 \\
+LinUCB & 3552.91 & \textit{0.00} & 0.49 & \textit{0.00} & 4.01 & \textit{0.00} \\
+\bottomrule
+\end{tabular}
+\end{table}
